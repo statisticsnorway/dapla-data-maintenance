@@ -2,6 +2,10 @@ package no.ssb.dapla.datamaintenance.service;
 
 
 import no.ssb.dapla.datamaintenance.config.DataMaintenanceConfigProvider;
+import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.media.Content;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,14 +25,32 @@ import java.util.Collections;
 public class DataMaintenanceService {
 
     private static final JsonBuilderFactory JSON = Json.createBuilderFactory(Collections.emptyMap());
-    private final DataMaintenanceConfigProvider configProvider;
     private static final Logger LOG = LoggerFactory.getLogger(DataMaintenanceService.class);
+    private final DataMaintenanceConfigProvider configProvider;
 
     @Inject
     public DataMaintenanceService(DataMaintenanceConfigProvider configProvider) {
         this.configProvider = configProvider;
     }
-    
+
+    @GET
+    @Path("/test2")
+    @Operation(summary = "Test summary",
+            description = "Test description")
+    @APIResponse(
+            description = "Response description",
+            content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = SomeModel.class)
+            )
+    )
+    @Produces(MediaType.APPLICATION_JSON)
+    public SomeModel openApiTest() {
+        var response = new SomeModel("Hello" + configProvider.toString());
+        LOG.info("returning " + response);
+        return response;
+    }
+
     @Path("/test")
     @GET
     @Produces(MediaType.APPLICATION_JSON)
@@ -37,5 +59,21 @@ public class DataMaintenanceService {
         return JSON.createObjectBuilder()
                 .add("message", "Server is up and running")
                 .build();
+    }
+
+    public static class SomeModel {
+        private String message;
+
+        private SomeModel(String message) {
+            this.message = message;
+        }
+
+        public String getMessage() {
+            return message;
+        }
+
+        public void setMessage(String message) {
+            this.message = message;
+        }
     }
 }

@@ -43,6 +43,19 @@
             <version>${slf4j.version}</version>
         </dependency>
 
+        <!-- OpenAPI -->
+        <dependency>
+            <groupId>org.eclipse.microprofile.openapi</groupId>
+            <artifactId>microprofile-openapi-api</artifactId>
+            <version>1.1.2</version>
+        </dependency>
+        <dependency>
+            <groupId>io.helidon.microprofile.openapi</groupId>
+            <artifactId>helidon-microprofile-openapi</artifactId>
+            <version>2.1.0</version>
+            <scope>runtime</scope>
+        </dependency>
+
         <!-- Test dependencies -->
         <dependency>
             <groupId>org.assertj</groupId>
@@ -74,6 +87,20 @@
                         <dependencyConvergence/>
                     </rules>
                 </configuration>
+            </plugin>
+            <!-- Index the annotations for faster startup -->
+            <plugin>
+                <groupId>org.jboss.jandex</groupId>
+                <artifactId>jandex-maven-plugin</artifactId>
+                <version>1.0.6</version>
+                <executions>
+                    <execution>
+                        <id>make-index</id>
+                        <goals>
+                            <goal>jandex</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <!-- Override PMD versjon in maven-pmd-plugin 3.13.0 -->
             <plugin>

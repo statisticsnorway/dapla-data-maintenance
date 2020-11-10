@@ -109,13 +109,6 @@
                 <!-- annotationProcessorPaths requires maven-compiler-plugin version 3.5 or higher -->
                 <version>3.8.1</version>
                 <configuration>
-                    <annotationProcessorPaths>
-                        <path>
-                            <groupId>info.picocli</groupId>
-                            <artifactId>picocli-codegen</artifactId>
-                            <version>4.3.2</version>
-                        </path>
-                    </annotationProcessorPaths>
                     <compilerArgs>
                         <arg>-Aproject=${project.groupId}/${project.artifactId}</arg>
                         <arg>--enable-preview</arg>

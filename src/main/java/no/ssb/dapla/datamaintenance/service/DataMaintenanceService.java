@@ -28,7 +28,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-@Path("/")
+@Path("/api/v1")
 @RequestScoped
 public class DataMaintenanceService {
 

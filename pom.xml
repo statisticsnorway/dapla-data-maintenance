@@ -12,6 +12,7 @@
 
     <groupId>no.ssb.dapla</groupId>
     <artifactId>dapla-data-maintenance</artifactId>
+    <version>0.1-SNAPSHOT</version>
     <name>${project.artifactId}</name>
 
     <properties>

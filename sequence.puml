@@ -1,0 +1,43 @@
+@startuml
+actor User
+
+== List ==
+
+User -> cli: ls foo bar
+activate cli
+cli -> datamaintenance : /api/v1/list/foo
+datamaintenance -> catalog: ?? list datasets
+catalog --> datamaintenance: Response: foo
+datamaintenance --> cli
+cli -> datamaintenance : /api/v1/list/bar
+datamaintenance -> catalog: ?? list datasets
+catalog --> datamaintenance: Response: bar
+datamaintenance --> cli
+cli --> User
+deactivate cli
+
+== Remove ==
+
+User -> cli: rm foo/bar
+activate cli
+cli -> datamaintenance : /api/v1/list/foo/bar
+datamaintenance -> catalog: ?? list datasets
+datamaintenance <-- catalog: Response: foo/bar
+cli <-- datamaintenance : list of dataset(s) to delete
+        loop
+            cli -> User : confirm delete [dataset]?
+            User --> cli : y/n
+            cli -> datamaintenance : /api/v1/remove/[dataset]
+            datamaintenance -> dataaccess : deleteLocation(dataset)
+            datamaintenance <-- dataaccess : hasAccess + GCS token + URI
+            datamaintenance -> GCS : Delete bucket URI
+            datamaintenance <-- GCS : Bucket URI deleted
+
+            ... TODO: await delete confirmation from catalog?...
+            datamaintenance -> datamaintenance : wait
+
+            cli <-- datamaintenance : ok/nok
+        end
+User <-- cli
+deactivate cli
+@enduml

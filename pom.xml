@@ -18,8 +18,7 @@
     <properties>
         <mainClass>no.ssb.dapla.datamaintenance.DataMaintenanceApplication</mainClass>
         <slf4j.version>1.7.30</slf4j.version>
-        <maven.compiler.release>14</maven.compiler.release>
-        <maven.compiler.source>14</maven.compiler.source>
+        <maven.compiler.release>15</maven.compiler.release>
         <pmdVersion>6.22.0</pmdVersion>
     </properties>
 
@@ -149,7 +148,6 @@
                 <configuration>
                     <compilerArgs>
                         <arg>-Aproject=${project.groupId}/${project.artifactId}</arg>
-                        <arg>--enable-preview</arg>
                     </compilerArgs>
                 </configuration>
             </plugin>
@@ -180,7 +178,7 @@
                     <plugin>
                         <groupId>org.jacoco</groupId>
                         <artifactId>jacoco-maven-plugin</artifactId>
-                        <version>0.8.5</version>
+                        <version>0.8.6</version>
                         <executions>
                             <execution>
                                 <id>prepare-agent</id>

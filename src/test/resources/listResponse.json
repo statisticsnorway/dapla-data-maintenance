@@ -1,0 +1,100 @@
+{
+  "catalogs": [{
+    "id": {
+      "path": "/felles/demo/dapla-oktober/eiendom_alle_felter",
+      "timestamp": 1602746065226
+    },
+    "type": "BOUNDED",
+    "valuation": "INTERNAL",
+    "state": "INPUT"
+  }, {
+    "id": {
+      "path": "/felles/demo/dapla-oktober/eiendom_sumstat",
+      "timestamp": 1602704407461
+    },
+    "type": "BOUNDED",
+    "valuation": "INTERNAL",
+    "state": "INPUT"
+  }, {
+    "id": {
+      "path": "/felles/demo/dapla-oktober/eiendom_utledet",
+      "timestamp": 1602704377415
+    },
+    "type": "BOUNDED",
+    "valuation": "INTERNAL",
+    "state": "INPUT"
+  }, {
+    "id": {
+      "path": "/felles/demo/dapla-oktober/konto_alle_felter",
+      "timestamp": 1602745661378
+    },
+    "type": "BOUNDED",
+    "valuation": "INTERNAL",
+    "state": "INPUT"
+  }, {
+    "id": {
+      "path": "/felles/demo/dapla-oktober/konto_sumstat",
+      "timestamp": 1602704403688
+    },
+    "type": "BOUNDED",
+    "valuation": "INTERNAL",
+    "state": "INPUT"
+  }, {
+    "id": {
+      "path": "/felles/demo/dapla-oktober/konto_utledet",
+      "timestamp": 1602704371179
+    },
+    "type": "BOUNDED",
+    "valuation": "INTERNAL",
+    "state": "INPUT"
+  }, {
+    "id": {
+      "path": "/felles/demo/dapla-oktober/lonn_og_tilsvarende_ytelser",
+      "timestamp": 1602704347353
+    },
+    "type": "BOUNDED",
+    "valuation": "INTERNAL",
+    "state": "INPUT"
+  }, {
+    "id": {
+      "path": "/felles/demo/dapla-oktober/lonn_sumstat",
+      "timestamp": 1602704398942
+    },
+    "type": "BOUNDED",
+    "valuation": "INTERNAL",
+    "state": "INPUT"
+  }, {
+    "id": {
+      "path": "/felles/demo/dapla-oktober/lonn_ytelser_utledet",
+      "timestamp": 1602704366579
+    },
+    "type": "BOUNDED",
+    "valuation": "INTERNAL",
+    "state": "INPUT"
+  }, {
+    "id": {
+      "path": "/felles/demo/dapla-oktober/person_fodsel",
+      "timestamp": 1602745665904
+    },
+    "type": "BOUNDED",
+    "valuation": "INTERNAL",
+    "state": "INPUT"
+  }, {
+    "id": {
+      "path": "/felles/demo/dapla-oktober/person_innskudd_alder",
+      "timestamp": 1602669532310
+    },
+    "type": "BOUNDED",
+    "valuation": "INTERNAL",
+    "state": "INPUT"
+  }, {
+    "id": {
+      "path": "/felles/demo/dapla-oktober/skattedata_klargjort",
+      "timestamp": 1602668754418
+    },
+    "type": "BOUNDED",
+    "valuation": "INTERNAL",
+    "state": "INPUT"
+  }
+  ]
+}

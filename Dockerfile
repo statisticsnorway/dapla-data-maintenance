@@ -16,4 +16,4 @@ WORKDIR /app
 
 CMD ["java", "-cp", "/app/lib/*", "no.ssb.dapla.datamaintenance.DataMaintenanceApplication"]
 
-EXPOSE 10190
+EXPOSE 10200

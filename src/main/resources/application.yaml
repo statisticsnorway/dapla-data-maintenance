@@ -1,6 +1,8 @@
 server:
-  port: 10190
+  port: 10200
   host: 0.0.0.0
   static.classpath:
     location: /static
     welcome: index.html
+
+catalog/mp-rest/url: http://localhost:20110

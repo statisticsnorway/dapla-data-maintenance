@@ -1,5 +1,6 @@
 package no.ssb.dapla.datamaintenance;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.helidon.config.Config;
 import io.helidon.microprofile.server.Server;
 import no.ssb.dapla.datamaintenance.service.DataMaintenanceService;
@@ -9,6 +10,7 @@ import org.slf4j.LoggerFactory;
 public final class DataMaintenanceApplication {
 
     private static final Logger LOG = LoggerFactory.getLogger(DataMaintenanceService.class);
+    public static final ObjectMapper mapper = new ObjectMapper();
 
     public DataMaintenanceApplication() {
     }

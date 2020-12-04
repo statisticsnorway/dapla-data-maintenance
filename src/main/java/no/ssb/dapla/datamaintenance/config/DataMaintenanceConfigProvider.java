@@ -19,4 +19,8 @@ public class DataMaintenanceConfigProvider {
 
     public void onStartup(@Observes @Initialized(ApplicationScoped.class) Object init) {
     }
+
+    public Config getConfig() {
+        return config;
+    }
 }

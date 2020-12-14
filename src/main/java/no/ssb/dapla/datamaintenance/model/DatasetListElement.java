@@ -31,6 +31,18 @@ public class DatasetListElement {
         return createdDate;
     }
 
+    public String getType() {
+        return type;
+    }
+
+    public String getValuation() {
+        return valuation;
+    }
+
+    public String getState() {
+        return state;
+    }
+
     public static DatasetListElement convertFromCatalogItem(CatalogItem cr) {
         return new DatasetListElement(
                 cr.getId().getPath(),

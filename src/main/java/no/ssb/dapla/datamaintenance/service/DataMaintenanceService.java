@@ -2,14 +2,15 @@ package no.ssb.dapla.datamaintenance.service;
 
 
 import no.ssb.dapla.datamaintenance.catalog.CatalogClient;
-import no.ssb.dapla.datamaintenance.config.DataMaintenanceConfigProvider;
 import no.ssb.dapla.datamaintenance.model.CatalogItem;
 import no.ssb.dapla.datamaintenance.model.DatasetListElement;
+import org.eclipse.microprofile.config.Config;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
+import org.eclipse.microprofile.rest.client.RestClientBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,14 +19,11 @@ import javax.inject.Inject;
 import javax.json.Json;
 import javax.json.JsonBuilderFactory;
 import javax.json.JsonObject;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
+import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
+import java.net.URI;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -36,14 +34,16 @@ public class DataMaintenanceService {
 
     private static final JsonBuilderFactory JSON = Json.createBuilderFactory(Collections.emptyMap());
     private static final Logger LOG = LoggerFactory.getLogger(DataMaintenanceService.class);
-    private final DataMaintenanceConfigProvider configProvider;
     private final CatalogClient catalogClient;
 
     @Inject
-    public DataMaintenanceService(DataMaintenanceConfigProvider configProvider, CatalogClient catalogClient) {
-        this.configProvider = configProvider;
-        this.catalogClient = catalogClient;
+    public DataMaintenanceService(Config config) {
+        var catalogURL = config.getValue("catalog.url", String.class);
+        catalogClient = RestClientBuilder.newBuilder()
+                .baseUri(URI.create(catalogURL))
+                .build(CatalogClient.class);
     }
+
 
     @GET
     @Path("/list/{path: .*}")

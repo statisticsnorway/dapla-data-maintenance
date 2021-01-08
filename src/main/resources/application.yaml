@@ -5,4 +5,5 @@ server:
     location: /static
     welcome: index.html
 
-catalog/mp-rest/url: http://localhost:20110
+catalog:
+  url: http://localhost:20110

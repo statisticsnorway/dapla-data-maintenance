@@ -17,6 +17,3 @@ public interface CatalogClient {
     String list();
 
 }
-
-
-

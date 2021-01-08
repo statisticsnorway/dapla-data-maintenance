@@ -14,6 +14,6 @@ COPY target/classes/application.yaml /app/conf/
 
 WORKDIR /app
 
-CMD ["java", "-cp", "/app/lib/*", "no.ssb.dapla.datamaintenance.DataMaintenanceApplication"]
+CMD ["java", "--enable-preview", "-cp", "/app/lib/*", "no.ssb.dapla.datamaintenance.DataMaintenanceApplication"]
 
 EXPOSE 10200

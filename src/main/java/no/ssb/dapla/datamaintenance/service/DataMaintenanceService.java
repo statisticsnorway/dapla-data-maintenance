@@ -3,6 +3,7 @@ package no.ssb.dapla.datamaintenance.service;
 
 import no.ssb.dapla.datamaintenance.catalog.CatalogClient;
 import no.ssb.dapla.datamaintenance.model.CatalogItem;
+import no.ssb.dapla.datamaintenance.catalog.InstantConverterProvider;
 import no.ssb.dapla.datamaintenance.model.DatasetListElement;
 import org.eclipse.microprofile.config.Config;
 import org.eclipse.microprofile.openapi.annotations.Operation;
@@ -41,6 +42,7 @@ public class DataMaintenanceService {
         var catalogURL = config.getValue("catalog.url", String.class);
         catalogClient = RestClientBuilder.newBuilder()
                 .baseUri(URI.create(catalogURL))
+                .register(InstantConverterProvider.class)
                 .build(CatalogClient.class);
     }
 

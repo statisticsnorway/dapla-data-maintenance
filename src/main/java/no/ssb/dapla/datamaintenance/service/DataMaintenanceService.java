@@ -1,8 +1,9 @@
 package no.ssb.dapla.datamaintenance.service;
 
 
+import io.helidon.common.reactive.Multi;
+import io.helidon.common.reactive.Single;
 import no.ssb.dapla.datamaintenance.catalog.CatalogClient;
-import no.ssb.dapla.datamaintenance.model.CatalogItem;
 import no.ssb.dapla.datamaintenance.catalog.InstantConverterProvider;
 import no.ssb.dapla.datamaintenance.model.DatasetListElement;
 import org.eclipse.microprofile.config.Config;
@@ -20,14 +21,19 @@ import javax.inject.Inject;
 import javax.json.Json;
 import javax.json.JsonBuilderFactory;
 import javax.json.JsonObject;
-import javax.ws.rs.*;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import java.io.IOException;
 import java.net.URI;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 @Path("/api/v1")
 @ApplicationScoped
@@ -59,17 +65,40 @@ public class DataMaintenanceService {
             )
     )
     @Produces(MediaType.APPLICATION_JSON)
-    public List<DatasetListElement> list(@PathParam("path") String path) {
+    public List<DatasetListElement> list(@PathParam("path") String path) throws ExecutionException, InterruptedException {
         LOG.info("Listing datasets on path {}", path);
-        try {
-            List<CatalogItem> catalogItems = CatalogItem.convertJSON(catalogClient.list());
-            return catalogItems.stream()
-                    .map(DatasetListElement::convertFromCatalogItem)
-                    .collect(Collectors.toList());
-        } catch (IOException e) {
-            e.printStackTrace(); // TODO return correct error
-        }
-        return null;
+
+        var now = Instant.now();
+        var limit = 1000;
+
+        // Start to async calls here.
+        var folders = Single.create(
+                CompletableFuture.supplyAsync(() -> catalogClient.folder(path, now, limit)))
+                .flatMapIterable(identifierList -> identifierList.entries)
+                .map(identifier -> {
+                    return new DatasetListElement(
+                            identifier.path,
+                            "TODO",
+                            Instant.ofEpochMilli(identifier.timestamp),
+                            "TODO", "TODO", "TODO",
+                            1 // TODO: Refactor this.
+                    );
+                });
+        var datasets = Single.create(
+                CompletableFuture.supplyAsync(() -> catalogClient.dataset(path, now, limit)))
+                .flatMapIterable(identifierList -> identifierList.entries)
+                .map(identifier -> {
+                    return new DatasetListElement(
+                            identifier.path,
+                            "TODO",
+                            Instant.ofEpochMilli(identifier.timestamp),
+                            "TODO", "TODO", "TODO",
+                            0 // TODO: Refactor this.
+                    );
+                });
+
+        // Merge them.
+        return Multi.concat(folders, datasets).collectList().get();
     }
 
     @DELETE

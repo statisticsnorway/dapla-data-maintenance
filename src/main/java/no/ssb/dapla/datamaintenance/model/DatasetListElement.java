@@ -9,14 +9,17 @@ public class DatasetListElement {
     private String type;
     private String valuation;
     private String state;
+    private Integer depth;
 
-    public DatasetListElement(String path, String createdBy, Instant createdDate, String type, String valuation, String state) {
+    public DatasetListElement(String path, String createdBy, Instant createdDate, String type, String valuation,
+                              String state, Integer depth) {
         this.path = path;
         this.createdBy = createdBy;
         this.createdDate = createdDate;
         this.type = type;
         this.valuation = valuation;
         this.state = state;
+        this.depth = depth;
     }
 
     public String getPath() {
@@ -43,6 +46,10 @@ public class DatasetListElement {
         return state;
     }
 
+    public Integer getDepth() {
+        return depth;
+    }
+
     public static DatasetListElement convertFromCatalogItem(CatalogItem cr) {
         return new DatasetListElement(
                 cr.getId().getPath(),
@@ -50,7 +57,8 @@ public class DatasetListElement {
                 cr.getId().getTimestamp().toInstant(),
                 cr.getType(),
                 cr.getValuation(),
-                cr.getState()
+                cr.getState(),
+                0
         );
     }
 }

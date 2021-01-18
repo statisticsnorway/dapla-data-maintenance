@@ -3,6 +3,11 @@
 #
 FROM openjdk:15-slim
 
+# CVE-2019-25013
+RUN apt-get update && apt-get install -y \
+    libc6 \
+    && rm -rf /var/lib/apt/lists/*
+
 #
 # Resources from build image
 #

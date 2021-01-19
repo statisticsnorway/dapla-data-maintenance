@@ -37,7 +37,7 @@ public interface CatalogClient {
             @QueryParam("limit") Integer limit);
 
     class IdentifierList {
-        public List<Identifier> entries;
+        public List<Identifier> entries = List.of();
     }
 
     class Identifier {

@@ -3,10 +3,10 @@ package no.ssb.dapla.datamaintenance.catalog;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import org.eclipse.microprofile.rest.client.RestClientBuilder;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.HttpHeaders;
 import java.io.IOException;
 import java.time.Instant;
@@ -14,20 +14,17 @@ import java.util.concurrent.ExecutionException;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class CatalogClientTest {
 
-    private static MockWebServer server;
+    private MockWebServer server;
     private CatalogClient client;
 
-    @BeforeAll
-    static void beforeAll() throws IOException {
+    @BeforeEach
+    void setUp() throws IOException {
         server = new MockWebServer();
         server.start();
-    }
-
-    @BeforeEach
-    void setUp() {
         client = RestClientBuilder.newBuilder()
                 .baseUri(server.url("/").uri())
                 .build(CatalogClient.class);
@@ -92,7 +89,7 @@ class CatalogClientTest {
                         }
                         """)
         );
-        var datasets = client.datasetAsync("a/prefix", Instant.ofEpochSecond(1234), 100)
+        var datasets = client.datasetAsync("/a/prefix", Instant.ofEpochSecond(1234), 100)
                 .toCompletableFuture().get();
         assertThat(datasets.entries).containsExactly(
                 CatalogClient.Identifier.of("/skatt/person/inputdata", 1583493564625L),
@@ -100,7 +97,7 @@ class CatalogClientTest {
         );
 
         var request = server.takeRequest();
-        assertThat(request.getPath()).isEqualTo("/dataset?prefix=a%2Fprefix&limit=100&version=1970-01-01T00%3A20%3A34Z");
+        assertThat(request.getPath()).isEqualTo("/dataset?prefix=%2Fa%2Fprefix&limit=100&version=1970-01-01T00%3A20%3A34Z");
     }
 
     @Test
@@ -109,8 +106,13 @@ class CatalogClientTest {
                 .setHeader(HttpHeaders.CONTENT_TYPE, APPLICATION_JSON)
                 .setResponseCode(404)
         );
-        var folder = client.datasetAsync("/prefix", Instant.ofEpochSecond(1234), 100)
-                .toCompletableFuture().get();
-        assertThat(folder).isNotNull();
+
+        assertThatThrownBy(() -> {
+            client.datasetAsync("/prefix", Instant.ofEpochSecond(1234), 100)
+                    .toCompletableFuture().get();
+        }).getCause().isInstanceOf(WebApplicationException.class)
+                .extracting(throwable -> {
+                    return ((WebApplicationException) throwable).getResponse().getStatus();
+                }).isEqualTo(404);
     }
 }

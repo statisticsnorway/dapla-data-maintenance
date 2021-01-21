@@ -1,6 +1,7 @@
 package no.ssb.dapla.datamaintenance.catalog;
 
 import com.fasterxml.jackson.annotation.JsonIdentityReference;
+import org.eclipse.microprofile.rest.client.annotation.RegisterProvider;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -10,8 +11,10 @@ import javax.ws.rs.core.MediaType;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CompletionStage;
 
 @Path("/")
+@RegisterProvider(InstantConverterProvider.class)
 public interface CatalogClient {
 
     @GET
@@ -23,18 +26,24 @@ public interface CatalogClient {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @Path("folder")
-    IdentifierList folder(
-            @QueryParam("prefix") String prefix,
-            @QueryParam("version") Instant version,
-            @QueryParam("limit") Integer limit);
+    CompletionStage<IdentifierList> folderAsync(@QueryParam("prefix") String prefix,
+                                                @QueryParam("version") Instant version,
+                                                @QueryParam("limit") Integer limit);
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @Path("dataset")
-    IdentifierList dataset(
-            @QueryParam("prefix") String prefix,
-            @QueryParam("version") Instant version,
-            @QueryParam("limit") Integer limit);
+    CompletionStage<IdentifierList> datasetAsync(@QueryParam("prefix") String prefix,
+                                                 @QueryParam("version") Instant version,
+                                                 @QueryParam("limit") Integer limit);
+
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path("path")
+    CompletionStage<IdentifierList> pathAsync(@QueryParam("prefix") String prefix,
+                                              @QueryParam("version") Instant version,
+                                              @QueryParam("limit") Integer limit
+    );
 
     class IdentifierList {
         public List<Identifier> entries = List.of();

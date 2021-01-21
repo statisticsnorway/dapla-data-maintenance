@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import javax.ws.rs.core.HttpHeaders;
 import java.io.IOException;
 import java.time.Instant;
+import java.util.concurrent.ExecutionException;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -29,12 +30,11 @@ class CatalogClientTest {
     void setUp() {
         client = RestClientBuilder.newBuilder()
                 .baseUri(server.url("/").uri())
-                .register(InstantConverterProvider.class)
                 .build(CatalogClient.class);
     }
 
     @Test
-    void testListFolder() throws InterruptedException {
+    void testListFolder() throws InterruptedException, ExecutionException {
 
         server.enqueue(new MockResponse()
                 .setHeader(HttpHeaders.CONTENT_TYPE, APPLICATION_JSON)
@@ -59,8 +59,9 @@ class CatalogClientTest {
                                 
                         """)
         );
-        var folder = client.folder("a/prefix", Instant.ofEpochSecond(1234), 100);
-        assertThat(folder.entries).containsExactly(
+        var folders = client.folderAsync("a/prefix", Instant.ofEpochSecond(1234), 100)
+                .toCompletableFuture().get();
+        assertThat(folders.entries).containsExactly(
                 CatalogClient.Identifier.of("felles", 1610617128787L),
                 CatalogClient.Identifier.of("kilde", 1604071017000L),
                 CatalogClient.Identifier.of("produkt", 1608128434194L)
@@ -71,7 +72,7 @@ class CatalogClientTest {
     }
 
     @Test
-    void testListDataset() throws InterruptedException {
+    void testListDataset() throws InterruptedException, ExecutionException {
 
         server.enqueue(new MockResponse()
                 .setHeader(HttpHeaders.CONTENT_TYPE, APPLICATION_JSON)
@@ -91,13 +92,25 @@ class CatalogClientTest {
                         }
                         """)
         );
-        var folder = client.dataset("a/prefix", Instant.ofEpochSecond(1234), 100);
-        assertThat(folder.entries).containsExactly(
+        var datasets = client.datasetAsync("a/prefix", Instant.ofEpochSecond(1234), 100)
+                .toCompletableFuture().get();
+        assertThat(datasets.entries).containsExactly(
                 CatalogClient.Identifier.of("/skatt/person/inputdata", 1583493564625L),
                 CatalogClient.Identifier.of("/skatt/person/rawdata-2019", 1582719098762L)
         );
 
         var request = server.takeRequest();
         assertThat(request.getPath()).isEqualTo("/dataset?prefix=a%2Fprefix&limit=100&version=1970-01-01T00%3A20%3A34Z");
+    }
+
+    @Test
+    void testPrefixNotFound() throws ExecutionException, InterruptedException {
+        server.enqueue(new MockResponse()
+                .setHeader(HttpHeaders.CONTENT_TYPE, APPLICATION_JSON)
+                .setResponseCode(404)
+        );
+        var folder = client.datasetAsync("/prefix", Instant.ofEpochSecond(1234), 100)
+                .toCompletableFuture().get();
+        assertThat(folder).isNotNull();
     }
 }

@@ -5,7 +5,10 @@ import io.helidon.common.http.Http;
 import io.helidon.common.reactive.Multi;
 import io.helidon.common.reactive.Single;
 import io.helidon.webserver.HttpException;
+import no.ssb.dapla.datamaintenance.access.DataAccessService;
+import no.ssb.dapla.datamaintenance.access.UserAccessService;
 import no.ssb.dapla.datamaintenance.catalog.CatalogClient;
+import no.ssb.dapla.datamaintenance.catalog.CatalogService;
 import no.ssb.dapla.datamaintenance.model.DatasetListElement;
 import org.eclipse.microprofile.config.Config;
 import org.eclipse.microprofile.openapi.annotations.Operation;
@@ -35,9 +38,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicInteger;
+
+import static no.ssb.dapla.datamaintenance.catalog.CatalogClient.*;
 
 @Path("/api/v1")
 @ApplicationScoped
@@ -45,18 +47,19 @@ public class DataMaintenanceService {
 
     private static final JsonBuilderFactory JSON = Json.createBuilderFactory(Collections.emptyMap());
     private static final Logger LOG = LoggerFactory.getLogger(DataMaintenanceService.class);
-    private final CatalogClient catalogClient;
+    private final CatalogService catalogService;
 
     @Inject
     public DataMaintenanceService(Config config) {
         var catalogURL = config.getValue("catalog.url", String.class);
-        catalogClient = RestClientBuilder.newBuilder()
+        var catalogClient = RestClientBuilder.newBuilder()
                 .baseUri(URI.create(catalogURL))
                 .build(CatalogClient.class);
+        catalogService = new CatalogService(catalogClient);
     }
 
     // TODO: Review the model here.
-    public static DatasetListElement toFolder(CatalogClient.Identifier identifier) {
+    public static DatasetListElement toFolder(Identifier identifier) {
         return new DatasetListElement(
                 identifier.path,
                 "TODO",
@@ -67,7 +70,7 @@ public class DataMaintenanceService {
     }
 
     // TODO: Review the model here.
-    public static DatasetListElement toDataset(CatalogClient.Identifier identifier) {
+    public static DatasetListElement toDataset(Identifier identifier) {
         return new DatasetListElement(
                 identifier.path,
                 "TODO",
@@ -99,21 +102,16 @@ public class DataMaintenanceService {
         // under the path, and dataset to list the datasets under the path.
         // Note that the calls are made simultaneously regardless of the result of the path call.
 
-        var folders = Single.create(catalogClient.folderAsync(path, now, limit))
-                .flatMapIterable(identifierList -> {
-                    return identifierList.entries;
-                })
+        var folders = catalogService.getFolders(path, now, limit)
                 .map(DataMaintenanceService::toFolder);
-        var datasets = Single.create(catalogClient.datasetAsync(path, now, limit))
-                .flatMapIterable(identifierList -> {
-                    return identifierList.entries;
-                })
+
+        var datasets = catalogService.getDatasets(path, now, limit)
                 .map(DataMaintenanceService::toDataset);
 
-        // Check that the path exists.
-        return Single.create(catalogClient.pathAsync(path, now, 1))
-                .flatMapSingle(identifierList -> {
-                    if (identifierList.entries.isEmpty()) {
+        return catalogService.doesPathExist(path, now)
+                .flatMapSingle(exists -> {
+                    // Check that the path exists.
+                    if (exists) {
                         // Could also throw here.
                         return Single.error(new HttpException("Cannot access '" + path + "': No such dataset or folder",
                                 Http.Status.NOT_FOUND_404));
@@ -125,7 +123,7 @@ public class DataMaintenanceService {
     }
 
     @DELETE
-    @Path("/delete/{datasetpath: .*}")
+    @Path("/delete/{path: .*}")
     @Operation(summary = "Delete a dataset",
             description = "Delete a dataset from given path"
     )

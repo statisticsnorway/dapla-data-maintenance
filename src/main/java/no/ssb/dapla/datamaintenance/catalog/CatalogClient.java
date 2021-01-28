@@ -1,6 +1,5 @@
 package no.ssb.dapla.datamaintenance.catalog;
 
-import com.fasterxml.jackson.annotation.JsonIdentityReference;
 import org.eclipse.microprofile.rest.client.annotation.RegisterProvider;
 
 import javax.ws.rs.GET;
@@ -16,12 +15,6 @@ import java.util.concurrent.CompletionStage;
 @Path("/")
 @RegisterProvider(InstantConverterProvider.class)
 public interface CatalogClient {
-
-    @GET
-    @Produces(MediaType.TEXT_PLAIN)
-    @JsonIdentityReference
-    @Path("catalog")
-    String list();
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)

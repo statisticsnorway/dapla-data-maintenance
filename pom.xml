@@ -52,6 +52,12 @@
             <version>${slf4j.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>com.google.cloud</groupId>
+            <artifactId>google-cloud-nio</artifactId>
+            <version>0.122.4</version>
+        </dependency>
+
         <!-- OpenAPI -->
         <dependency>
             <groupId>org.eclipse.microprofile.openapi</groupId>

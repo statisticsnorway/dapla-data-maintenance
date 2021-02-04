@@ -70,16 +70,23 @@ public class StorageService {
      *
      * @param prefix the prefix to delete.
      */
-    public Single<Path> markDelete(URI prefix, InputStream token) throws IOException {
-        var fileSystem = setupFileSystem(prefix, token);
-        var file = removeSchemeAndHost(prefix);
-        var deleteMarker = fileSystem.getPath(file.getPath(), DELETED_MARKER);
-        try {
-            Files.createFile(deleteMarker);
-        } catch (FileAlreadyExistsException faee) {
-            // TODO: Log
-        }
-        return Single.just(deleteMarker);
+    public Single<Path> markDelete(URI prefix, InputStream token) {
+        return Single.defer(() -> {
+            try {
+                var fileSystem = setupFileSystem(prefix, token);
+                var file = removeSchemeAndHost(prefix);
+                var path = fileSystem.getPath(file.getPath());
+                try {
+                    Files.createFile(path.resolve(DELETED_MARKER));
+                } catch (FileAlreadyExistsException faee) {
+                    // TODO: Log
+                    return Single.empty();
+                }
+                return Single.just(path);
+            } catch  (IOException ioe) {
+                return Single.error(ioe);
+            }
+        });
     }
 
     /**

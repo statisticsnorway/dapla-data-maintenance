@@ -6,7 +6,11 @@ import com.google.cloud.storage.contrib.nio.CloudStorageConfiguration;
 import com.google.cloud.storage.contrib.nio.CloudStorageFileSystem;
 import io.helidon.common.reactive.Multi;
 import io.helidon.common.reactive.Single;
+import io.helidon.config.Config;
 
+import javax.enterprise.context.ApplicationScoped;
+import javax.enterprise.inject.Default;
+import javax.inject.Inject;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -17,6 +21,7 @@ import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.HashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.BiPredicate;
@@ -24,6 +29,7 @@ import java.util.function.BiPredicate;
 /**
  * Two phase delete on object store.
  */
+@ApplicationScoped
 public class StorageService {
 
     private static final String GCS_SCHEME = "gs";
@@ -77,6 +83,7 @@ public class StorageService {
                 var file = removeSchemeAndHost(prefix);
                 var path = fileSystem.getPath(file.getPath());
                 try {
+                    // TODO: Append info about who tried to delete.
                     Files.createFile(path.resolve(DELETED_MARKER));
                 } catch (FileAlreadyExistsException faee) {
                     // TODO: Log
@@ -95,19 +102,35 @@ public class StorageService {
      * @param prefix the prefix
      * @return the list of files that are deleted.
      */
-    public Multi<Path> finishDelete(URI prefix, InputStream token) throws IOException {
-        var fileSystem = setupFileSystem(prefix, token);
-        var path = fileSystem.getPath(removeSchemeAndHost(prefix).getPath());
+    public Multi<Path> finishDelete(URI prefix, InputStream token) {
+        return Multi.defer(() -> {
+            try {
+                var fileSystem = setupFileSystem(prefix, token);
+                var path = fileSystem.getPath(removeSchemeAndHost(prefix).getPath());
 
-        // TODO: check if a recursive implementation with Files.find() and a folder
-        //  filter would improve performances. I suspect that GCS under the hood need
-        //  to go through the files sequentially anyways.
-        return Multi.concat(
-                Multi.just(path),
-                Multi.create(Files.list(path))
+                // TODO: check if a recursive implementation with Files.find() and a folder
+                //  filter would improve performances. I suspect that GCS under the hood need
+                //  to go through the files sequentially anyways.
+                return Multi.concat(
+                        Multi.just(path),
+                        Multi.create(Files.list(path))
                 ).filter(subDirectory -> {
                     return Files.isDirectory(subDirectory) && Files.exists(subDirectory.resolve(DELETED_MARKER));
                 }).flatMap(pathToDelete -> deleteAllUnder(pathToDelete));
+            } catch  (IOException ioe) {
+                return Single.error(ioe);
+            }
+        });
+    }
+
+    public Single<Long> getSize(Path path) {
+        return Single.defer(() -> {
+            try {
+                return Single.just(Files.size(path));
+            } catch (IOException e) {
+                return Single.error(e);
+            }
+        }).observeOn(getExecutor());
     }
 
     /**

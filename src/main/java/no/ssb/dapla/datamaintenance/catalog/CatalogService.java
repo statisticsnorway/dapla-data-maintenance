@@ -2,17 +2,33 @@ package no.ssb.dapla.datamaintenance.catalog;
 
 import io.helidon.common.reactive.Multi;
 import io.helidon.common.reactive.Single;
+import io.helidon.config.Config;
 import no.ssb.dapla.datamaintenance.catalog.CatalogClient.Identifier;
+import org.eclipse.microprofile.rest.client.RestClientBuilder;
 
+import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Inject;
+import java.net.URI;
 import java.time.Instant;
 
 /**
  * Wrap catalog client.
  */
+@ApplicationScoped
 public class CatalogService {
 
     private final CatalogClient client;
 
+    @Inject
+    public CatalogService(Config config) {
+        this(config.get("catalog.url").asString().get());
+    }
+
+    public CatalogService(String url) {
+        client = RestClientBuilder.newBuilder()
+                .baseUri(URI.create(url))
+                .build(CatalogClient.class);
+    }
 
     public CatalogService(CatalogClient client) {
         this.client = client;
@@ -21,6 +37,11 @@ public class CatalogService {
     public Single<Boolean> doesPathExist(String prefix, Instant version) {
         return getPath(prefix, version, 1).collectList()
                 .map(identifiers -> !identifiers.isEmpty());
+    }
+
+    public Single<Boolean> isOnlyDataset(String prefix, Instant version) {
+        return getPath(prefix, version, 2).collectList()
+                .map(identifiers -> identifiers.size() == 1);
     }
 
     public Multi<Identifier> getPath(String prefix, Instant version, Integer limit) {

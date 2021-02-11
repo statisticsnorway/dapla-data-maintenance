@@ -5,18 +5,17 @@ import io.helidon.common.http.Http;
 import io.helidon.common.reactive.Multi;
 import io.helidon.common.reactive.Single;
 import io.helidon.webserver.HttpException;
+import no.ssb.dapla.data.access.protobuf.DeleteLocationResponse;
 import no.ssb.dapla.datamaintenance.access.DataAccessService;
-import no.ssb.dapla.datamaintenance.access.UserAccessService;
-import no.ssb.dapla.datamaintenance.catalog.CatalogClient;
 import no.ssb.dapla.datamaintenance.catalog.CatalogService;
 import no.ssb.dapla.datamaintenance.model.DatasetListElement;
-import org.eclipse.microprofile.config.Config;
+import no.ssb.dapla.datamaintenance.model.DeleteResponse;
+import no.ssb.dapla.datamaintenance.storage.StorageService;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
-import org.eclipse.microprofile.rest.client.RestClientBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,16 +29,20 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
 import java.net.URI;
 import java.time.Instant;
+import java.util.AbstractMap;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 
-import static no.ssb.dapla.datamaintenance.catalog.CatalogClient.*;
+import static no.ssb.dapla.datamaintenance.catalog.CatalogClient.Identifier;
 
 @Path("/api/v1")
 @ApplicationScoped
@@ -47,15 +50,16 @@ public class DataMaintenanceService {
 
     private static final JsonBuilderFactory JSON = Json.createBuilderFactory(Collections.emptyMap());
     private static final Logger LOG = LoggerFactory.getLogger(DataMaintenanceService.class);
+
     private final CatalogService catalogService;
+    private final StorageService storageService;
+    private final DataAccessService dataAccessService;
 
     @Inject
-    public DataMaintenanceService(Config config) {
-        var catalogURL = config.getValue("catalog.url", String.class);
-        var catalogClient = RestClientBuilder.newBuilder()
-                .baseUri(URI.create(catalogURL))
-                .build(CatalogClient.class);
-        catalogService = new CatalogService(catalogClient);
+    public DataMaintenanceService(CatalogService catalogService, StorageService storageService, DataAccessService dataAccessService) {
+        this.catalogService = Objects.requireNonNull(catalogService);
+        this.storageService = Objects.requireNonNull(storageService);
+        this.dataAccessService = Objects.requireNonNull(dataAccessService);
     }
 
     // TODO: Review the model here.
@@ -141,17 +145,42 @@ public class DataMaintenanceService {
                     )
             }
     )
-    public Response delete(@PathParam("datasetpath") String dataset) {
-        // mock a respponse
-        if (dataset.equals("temp/skatt/skatt.tmp")) {
-            LOG.info("Deleting dataset {}", dataset);
-            return Response.status(Response.Status.ACCEPTED)
-                    .entity("Dataset " + dataset + " deleted")
-                    .build();
+    public CompletionStage<DeleteResponse> delete(@PathParam("path") String datasetPath, @QueryParam("dry-run") Boolean dryRun) {
+
+        // TODO: Query/Auth parameters
+        String JWT = "";
+        String userId = "Donald Trump";
+        Instant now = Instant.now();
+
+        // Make sure the dataset is not also a folder.
+        Single<Map<Identifier, DeleteLocationResponse>> tokens = catalogService.getDatasetVersions(datasetPath, Integer.MAX_VALUE)
+                .flatMap(identifier ->
+                        dataAccessService.getDeleteToken(identifier.path, identifier.timestamp, JWT)
+                                .map(r -> new AbstractMap.SimpleEntry<>(identifier, r)))
+                .collect(HashMap::new, (m, e) -> m.put(e.getKey(), e.getValue()));
+
+        if (!catalogService.isOnlyDataset(datasetPath, now).await()) {
+            tokens.cancel();
+            throw new HttpException("the path " + datasetPath + " is also a folder");
         }
-        LOG.info("Dataset {} not found", dataset);
-        return Response.status(Response.Status.NOT_FOUND)
-                .entity("Dataset " + dataset + " not found").build();
+
+        // Mark the versions to be deleted first.
+        tokens.flatMapIterable(Map::entrySet).flatMap(e -> {
+            var parentUri = URI.create(e.getValue().getParentUri());
+            var token = e.getValue().getAccessTokenBytes().newInput();
+            return storageService.markDelete(parentUri, token);
+        }).collectList().await();
+
+        // Asynchronously call
+        return tokens.flatMapIterable(Map::entrySet).flatMap(e -> {
+            var parentUri = URI.create(e.getValue().getParentUri());
+            var token = e.getValue().getAccessTokenBytes().newInput();
+            var version = Instant.ofEpochMilli(e.getKey().timestamp);
+            return storageService.finishDelete(parentUri, token).flatMap(path ->
+                    storageService.getSize(path).onErrorResume(throwable -> -1L)
+                            .map(size -> new DeleteResponse.DeletedFile(path, size))
+            ).collectList().map(deletedFiles -> new DeleteResponse.DatasetVersion(version, deletedFiles));
+        }).collectList().map(versions -> new DeleteResponse(datasetPath, versions));
     }
 
     @Path("/test")

@@ -7,10 +7,18 @@ import com.google.cloud.storage.contrib.nio.testing.LocalStorageHelper;
 
 import java.io.InputStream;
 import java.nio.file.FileSystem;
+import java.util.concurrent.Executor;
 
 public class TestableStorageService extends StorageService {
 
     private static final StorageOptions STORAGE_OPTIONS = LocalStorageHelper.getOptions();
+
+    public TestableStorageService(Executor executor) {
+        super(executor);
+    }
+
+    public TestableStorageService() {
+    }
 
     @Override
     StorageOptions getStorageOptions(InputStream token) {

@@ -38,6 +38,15 @@ public interface CatalogClient {
                                               @QueryParam("limit") Integer limit
     );
 
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path("version")
+    CompletionStage<IdentifierList> versionAsync(@QueryParam("path") String prefix,
+                                              @QueryParam("limit") Integer limit
+    );
+
+
+
     class IdentifierList {
         public List<Identifier> entries = List.of();
     }

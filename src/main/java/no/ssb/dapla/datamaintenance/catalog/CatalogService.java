@@ -60,6 +60,7 @@ public class CatalogService {
     }
 
     public Multi<Identifier> getDatasetVersions(String path, Integer limit) {
-        return Multi.empty();
+        return Single.create(client.versionAsync(path, limit))
+                .flatMapIterable(identifierList -> identifierList.entries);
     }
 }

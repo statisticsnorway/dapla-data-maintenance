@@ -176,9 +176,8 @@ public class DataMaintenanceService {
             var parentUri = URI.create(e.getValue().getParentUri());
             var token = e.getValue().getAccessTokenBytes().newInput();
             var version = Instant.ofEpochMilli(e.getKey().timestamp);
-            return storageService.finishDelete(parentUri, token).flatMap(path ->
-                    storageService.getSize(path).onErrorResume(throwable -> -1L)
-                            .map(size -> new DeleteResponse.DeletedFile(path, size))
+            return storageService.finishDelete(parentUri, token).map(pathAndSize ->
+                    new DeleteResponse.DeletedFile(pathAndSize.path().toUri().toString(), pathAndSize.size())
             ).collectList().map(deletedFiles -> new DeleteResponse.DatasetVersion(version, deletedFiles));
         }).collectList().map(versions -> new DeleteResponse(datasetPath, versions));
     }

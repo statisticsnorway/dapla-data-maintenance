@@ -6,11 +6,8 @@ import com.google.cloud.storage.contrib.nio.CloudStorageConfiguration;
 import com.google.cloud.storage.contrib.nio.CloudStorageFileSystem;
 import io.helidon.common.reactive.Multi;
 import io.helidon.common.reactive.Single;
-import io.helidon.config.Config;
 
 import javax.enterprise.context.ApplicationScoped;
-import javax.enterprise.inject.Default;
-import javax.inject.Inject;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -21,7 +18,6 @@ import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.HashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.BiPredicate;
@@ -37,6 +33,23 @@ public class StorageService {
     private static final String DELETED_MARKER = ".DELETED";
 
     private Executor executor = null;
+
+    public StorageService(Executor executor) {
+        this.executor = executor;
+    }
+
+    public StorageService() {
+    }
+
+    static URI removeSchemeAndHost(URI path) {
+        var scheme = path.getScheme();
+        if (GCS_SCHEME.equalsIgnoreCase(scheme)) {
+            // Strip the scheme and bucket name for GCS.
+            return URI.create(path.getPath());
+        } else {
+            return path;
+        }
+    }
 
     // We might need to cache the file system by bucket with token expiration as eviction?
     StorageOptions getStorageOptions(InputStream token) throws IOException {
@@ -54,16 +67,6 @@ public class StorageService {
             return FileSystems.getDefault();
         } else {
             throw new UnsupportedOperationException("scheme " + scheme + " is not supported");
-        }
-    }
-
-    static URI removeSchemeAndHost(URI path) {
-        var scheme = path.getScheme();
-        if (GCS_SCHEME.equalsIgnoreCase(scheme)) {
-            // Strip the scheme and bucket name for GCS.
-            return URI.create(path.getPath());
-        } else {
-            return path;
         }
     }
 
@@ -90,7 +93,7 @@ public class StorageService {
                     return Single.empty();
                 }
                 return Single.just(path);
-            } catch  (IOException ioe) {
+            } catch (IOException ioe) {
                 return Single.error(ioe);
             }
         });
@@ -102,7 +105,7 @@ public class StorageService {
      * @param prefix the prefix
      * @return the list of files that are deleted.
      */
-    public Multi<Path> finishDelete(URI prefix, InputStream token) {
+    public Multi<PathAndSize> finishDelete(URI prefix, InputStream token) {
         return Multi.defer(() -> {
             try {
                 var fileSystem = setupFileSystem(prefix, token);
@@ -117,13 +120,16 @@ public class StorageService {
                 ).filter(subDirectory -> {
                     return Files.isDirectory(subDirectory) && Files.exists(subDirectory.resolve(DELETED_MARKER));
                 }).flatMap(pathToDelete -> deleteAllUnder(pathToDelete));
-            } catch  (IOException ioe) {
+            } catch (IOException ioe) {
                 return Single.error(ioe);
             }
         });
     }
 
-    public Single<Long> getSize(Path path) {
+    /**
+     * Like {@link Files#size(Path)} but async.
+     */
+    public Single<Long> sizeAsync(Path path) {
         return Single.defer(() -> {
             try {
                 return Single.just(Files.size(path));
@@ -139,9 +145,15 @@ public class StorageService {
      * @param prefix the prefix
      * @return the list of files that are deleted.
      */
-    private Multi<Path> deleteAllUnder(Path prefix) {
+    private Multi<PathAndSize> deleteAllUnder(Path prefix) {
         return findAsync(prefix, Integer.MAX_VALUE, (foundPath, attr) -> !attr.isDirectory())
-                .flatMap(pathToDelete -> deleteIfExistsAsync(pathToDelete));
+                .flatMap(pathToDelete ->
+                        Single.create(
+                                sizeAsync(pathToDelete).onErrorResume(throwable -> -1L)
+                                        .thenCombine(deleteIfExistsAsync(pathToDelete), (size, path) ->
+                                                new PathAndSize(path, size)
+                                        ))
+                );
     }
 
     /**
@@ -151,7 +163,7 @@ public class StorageService {
                                   FileVisitOption... options) {
         return Single.defer(() -> {
             try {
-                return Single.just(Files.find(start, maxDepth, (foundPath, attr) -> !attr.isDirectory()));
+                return Single.just(Files.find(start, maxDepth, matcher, options));
             } catch (IOException ioe) {
                 return Single.error(ioe);
             }

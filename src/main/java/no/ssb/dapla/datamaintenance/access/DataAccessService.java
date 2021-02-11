@@ -2,6 +2,7 @@ package no.ssb.dapla.datamaintenance.access;
 
 import io.helidon.common.reactive.Single;
 import io.helidon.config.Config;
+import no.ssb.dapla.data.access.protobuf.DeleteLocationRequest;
 import no.ssb.dapla.data.access.protobuf.DeleteLocationResponse;
 import org.eclipse.microprofile.rest.client.RestClientBuilder;
 
@@ -26,6 +27,13 @@ public class DataAccessService {
     }
 
     public Single<DeleteLocationResponse> getDeleteToken(String path, Long version, String token) {
-        return Single.empty();
+        var request = DeleteLocationRequest.newBuilder()
+                .setPath(path)
+                .setSnapshot(version)
+                .build();
+        if (!token.startsWith("Bearer ")) {
+            token = "Bearer " + token;
+        }
+        return Single.create(client.deleteLocation(request, token));
     }
 }

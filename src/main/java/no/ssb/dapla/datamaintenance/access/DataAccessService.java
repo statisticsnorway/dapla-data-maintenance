@@ -17,7 +17,7 @@ public class DataAccessService {
 
     @Inject
     public DataAccessService(Config config) {
-        this(config.get("user-access.url").asString().get());
+        this(config.get("dataaccess.url").asString().get());
     }
 
     public DataAccessService(String url) {

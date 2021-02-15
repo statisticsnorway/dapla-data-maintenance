@@ -7,3 +7,6 @@ server:
 
 catalog:
   url: http://localhost:20110
+
+dataaccess:
+  url: http://localhost:10140

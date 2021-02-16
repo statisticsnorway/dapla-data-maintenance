@@ -121,7 +121,7 @@ public class DataMaintenanceService {
         return catalogService.doesPathExist(path, now)
                 .flatMapSingle(exists -> {
                     // Check that the path exists.
-                    if (exists) {
+                    if (!exists) {
                         // Could also throw here.
                         return Single.error(new HttpException("Cannot access '" + path + "': No such dataset or folder",
                                 Http.Status.NOT_FOUND_404));

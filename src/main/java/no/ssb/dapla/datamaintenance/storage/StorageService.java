@@ -105,7 +105,9 @@ public class StorageService {
                 try {
                     // TODO: Append info about who tried to delete.
                     Path markerPath = path.resolve(markerName);
-                    Files.createFile(markerPath);
+                    if (!Files.exists(markerPath)) {
+                        Files.createFile(markerPath);
+                    }
                     return Single.just(markerPath);
                 } catch (FileAlreadyExistsException faee) {
                     // TODO: Log

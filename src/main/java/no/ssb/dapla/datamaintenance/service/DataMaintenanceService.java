@@ -4,6 +4,7 @@ package no.ssb.dapla.datamaintenance.service;
 import io.helidon.common.http.Http;
 import io.helidon.common.reactive.Multi;
 import io.helidon.common.reactive.Single;
+import io.helidon.security.jwt.SignedJwt;
 import io.helidon.webserver.HttpException;
 import joptsimple.internal.Strings;
 import no.ssb.dapla.data.access.protobuf.DeleteLocationResponse;
@@ -150,18 +151,19 @@ public class DataMaintenanceService {
     public CompletionStage<DeleteResponse> delete(
             @PathParam("path") String datasetPath,
             @QueryParam("dry-run") Boolean dryRun,
-            @HeaderParam("Authorization")String auth
+            @HeaderParam("Authorization") String auth
     ) {
 
-        // TODO: Query/Auth parameters
-        String JWT = "";
-        String userId = "Donald Trump";
+        SignedJwt JWT = SignedJwt.parseToken((auth.startsWith("Bearer ") ?
+                auth.substring(7) :
+                auth
+        ).trim());
         Instant now = Instant.now();
 
         // Make sure the dataset is not also a folder.
         Single<Map<Identifier, DeleteLocationResponse>> tokens = catalogService.getDatasetVersions(datasetPath, Integer.MAX_VALUE)
                 .flatMap(identifier ->
-                        dataAccessService.getDeleteToken(identifier.path, identifier.timestamp, JWT)
+                        dataAccessService.getDeleteToken(identifier.path, identifier.timestamp, JWT.tokenContent())
                                 .map(r -> new AbstractMap.SimpleEntry<>(identifier, r)))
                 .collect(HashMap::new, (m, e) -> m.put(e.getKey(), e.getValue()));
 

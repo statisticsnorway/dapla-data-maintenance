@@ -1,5 +1,6 @@
 package no.ssb.dapla.datamaintenance.service;
 
+import io.helidon.common.reactive.Single;
 import io.helidon.webserver.HttpException;
 import no.ssb.dapla.data.access.protobuf.DeleteLocationRequest;
 import no.ssb.dapla.data.access.protobuf.DeleteLocationResponse;
@@ -193,20 +194,42 @@ class DataMaintenanceServiceTest {
         mockPathRequest("/foo/bar");
         mockVersion("/foo/bar", 50, 25, 10);
         mockAuthorizedDeleteToken("/foo/bar", Map.of(
-                50, "gs://bucket50/foo/bar/50",
-                25, "gs://bucket25/foo/bar/25"
+                50, "gs://bucket50/foo/bar/50"
         ));
         mockUnauthorizedDeleteToken("/foo/bar", Map.of(
+                25, "gs://bucket25/foo/bar/25",
                 10, "gs://bucket10/foo/bar/10"
         ));
 
         mockFile("bucket50", "/foo/bar/50/file1", "/foo/bar/50/file2");
-        mockFile("bucket25", "/foo/bar/25/files1", "/foo/bar/25/baz/file2");
-        mockFile("bucket10", "/foo/bar/10/files1", "/foo/bar/10/baz/file2");
+        mockFile("bucket25", "/foo/bar/25/file1", "/foo/bar/25/baz/file2");
+        mockFile("bucket10", "/foo/bar/10/file1", "/foo/bar/10/baz/file2");
 
-        var delete = service.delete("/foo/bar", false)
-                .toCompletableFuture()
-                .get();
+        assertThatThrownBy(() -> Single.create(service.delete("/foo/bar", false)).await())
+                .hasMessageContaining("missing delete access for versions")
+                .hasMessageContaining("/foo/bar, 1970-01-01T00:00:00.025Z")
+                .hasMessageContaining("/foo/bar, 1970-01-01T00:00:00.010Z")
+                .isInstanceOf(HttpException.class);
+
+        assertThat(Files.walk(storageService.getFileSystem("bucket50").getPath("/")))
+                .extracting(path -> path.toUri().toString())
+                .contains(
+                        "gs://bucket50/foo/bar/50/file1",
+                        "gs://bucket50/foo/bar/50/file2"
+                );
+
+        assertThat(Files.walk(storageService.getFileSystem("bucket25").getPath("/")))
+                .extracting(path -> path.toUri().toString())
+                .contains(
+                        "gs://bucket25/foo/bar/25/file1",
+                        "gs://bucket25/foo/bar/25/baz/file2"
+                );
+        assertThat(Files.walk(storageService.getFileSystem("bucket10").getPath("/")))
+                .extracting(path -> path.toUri().toString())
+                .contains(
+                        "gs://bucket10/foo/bar/10/file1",
+                        "gs://bucket10/foo/bar/10/baz/file2"
+                );
 
     }
 }

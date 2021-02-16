@@ -5,6 +5,7 @@ import io.helidon.common.http.Http;
 import io.helidon.common.reactive.Multi;
 import io.helidon.common.reactive.Single;
 import io.helidon.webserver.HttpException;
+import joptsimple.internal.Strings;
 import no.ssb.dapla.data.access.protobuf.DeleteLocationResponse;
 import no.ssb.dapla.datamaintenance.access.DataAccessService;
 import no.ssb.dapla.datamaintenance.catalog.CatalogService;
@@ -165,6 +166,18 @@ public class DataMaintenanceService {
         if (!catalogService.isOnlyDataset(datasetPath, now).await()) {
             tokens.cancel();
             throw new HttpException("the path " + datasetPath + " is also a folder");
+        }
+
+        // Check that access is allowed for each version.
+        var missingAccess = tokens.flatMapIterable(Map::entrySet)
+                .filter(r -> !r.getValue().getAccessAllowed())
+                .map(Map.Entry::getKey)
+                .map(identifier -> identifier.path + ", " + Instant.ofEpochMilli(identifier.timestamp))
+                .collectList().await();
+        if (!missingAccess.isEmpty()) {
+            throw new HttpException("missing delete access for versions: \n" + Strings.join(missingAccess, "\n"),
+                    Http.Status.METHOD_NOT_ALLOWED_405
+            );
         }
 
         // Mark the versions to be deleted first.

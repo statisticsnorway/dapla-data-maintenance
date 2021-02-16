@@ -39,7 +39,7 @@ class StorageServiceTest {
         Files.createFile(fs.getPath("/foo/bar/baz/file2"));
 
         var deleteMarker = service.markDelete(URI.create("gs://fake-bucket-1/foo/bar"),
-                InputStream.nullInputStream(), false).await();
+                null, false).await();
 
         assertThat(deleteMarker).asString().isEqualTo("/foo/bar/.DELETED");
 
@@ -53,7 +53,7 @@ class StorageServiceTest {
         assertThat(Files.exists(fs.getPath("/foo/bar/baz/file2"))).isTrue();
 
         var deletedFiles = service.finishDelete(URI.create("gs://fake-bucket-1/foo/bar"),
-                InputStream.nullInputStream(), false)
+                null, false)
                 .map(path -> path.path().toString()).collectList().await();
 
         assertThat(deletedFiles).containsExactly(

@@ -1,5 +1,6 @@
 package no.ssb.dapla.datamaintenance.storage;
 
+import com.google.auth.Credentials;
 import com.google.cloud.storage.StorageOptions;
 import com.google.cloud.storage.contrib.nio.CloudStorageConfiguration;
 import com.google.cloud.storage.contrib.nio.CloudStorageFileSystem;
@@ -21,7 +22,7 @@ public class TestableStorageService extends StorageService {
     }
 
     @Override
-    StorageOptions getStorageOptions(InputStream token) {
+    StorageOptions getStorageOptions(Credentials credentials) {
         return STORAGE_OPTIONS;
     }
 

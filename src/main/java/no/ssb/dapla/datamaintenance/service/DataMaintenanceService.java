@@ -1,6 +1,8 @@
 package no.ssb.dapla.datamaintenance.service;
 
 
+import com.google.auth.oauth2.AccessToken;
+import com.google.auth.oauth2.OAuth2Credentials;
 import io.helidon.common.http.Http;
 import io.helidon.common.reactive.Multi;
 import io.helidon.common.reactive.Single;
@@ -38,6 +40,7 @@ import java.net.URI;
 import java.time.Instant;
 import java.util.AbstractMap;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -188,20 +191,35 @@ public class DataMaintenanceService {
 
         // Mark the versions to be deleted first.
         tokens.flatMapIterable(Map::entrySet).flatMap(e -> {
-            var parentUri = URI.create(e.getValue().getParentUri());
-            var token = e.getValue().getAccessTokenBytes().newInput();
-            return storageService.markDelete(parentUri, token, dryRun);
+            // TODO: Map earlier
+            var parentUri = URI.create(String.join("/",
+                    e.getValue().getParentUri(),
+                    e.getKey().path,
+                    e.getKey().timestamp.toString()
+            ));
+            return storageService.markDelete(parentUri, getoAuth2Credentials(e.getValue()), dryRun);
         }).collectList().await();
 
         // Asynchronously call
         return tokens.flatMapIterable(Map::entrySet).flatMap(e -> {
-            var parentUri = URI.create(e.getValue().getParentUri());
-            var token = e.getValue().getAccessTokenBytes().newInput();
+            // TODO: Map earlier
+            var parentUri = URI.create(String.join("/",
+                    e.getValue().getParentUri(),
+                    e.getKey().path,
+                    e.getKey().timestamp.toString()
+            ));
             var version = Instant.ofEpochMilli(e.getKey().timestamp);
-            return storageService.finishDelete(parentUri, token, dryRun).map(pathAndSize ->
+            var credentials = getoAuth2Credentials(e.getValue());
+            return storageService.finishDelete(parentUri, credentials, dryRun).map(pathAndSize ->
                     new DeleteResponse.DeletedFile(pathAndSize.path().toUri().toString(), pathAndSize.size())
             ).collectList().map(deletedFiles -> new DeleteResponse.DatasetVersion(version, deletedFiles));
         }).collectList().map(versions -> new DeleteResponse(datasetPath, versions, dryRun));
+    }
+
+    private OAuth2Credentials getoAuth2Credentials(DeleteLocationResponse resp) {
+        var credentials = OAuth2Credentials.create(new AccessToken(resp.getAccessToken(),
+                Date.from(Instant.ofEpochMilli(resp.getExpirationTime()))));
+        return credentials;
     }
 
     @Path("/test")

@@ -1,5 +1,6 @@
 package no.ssb.dapla.datamaintenance.service;
 
+import io.helidon.common.http.Http;
 import io.helidon.common.reactive.Single;
 import io.helidon.webserver.HttpException;
 import no.ssb.dapla.data.access.protobuf.DeleteLocationRequest;
@@ -138,7 +139,7 @@ class DataMaintenanceServiceTest {
         mockFile("bucket25", "/foo/bar/25/files1", "/foo/bar/25/baz/file2");
         mockFile("bucket10", "/foo/bar/10/files1", "/foo/bar/10/baz/file2");
 
-        var delete = service.delete("/foo/bar", false)
+        var delete = service.delete("/foo/bar", false, "token")
                 .toCompletableFuture()
                 .get();
 
@@ -184,13 +185,16 @@ class DataMaintenanceServiceTest {
                 }
                 """).withHeader(HttpHeaders.CONTENT_TYPE, APPLICATION_JSON));
 
-        assertThatThrownBy(() -> service.delete("/foo/datasetAndFolder", false))
+        assertThatThrownBy(() -> service.delete("/foo/datasetAndFolder", false, "token"))
                 .isInstanceOf(HttpException.class)
-                .hasMessage("the path /foo/datasetAndFolder is also a folder");
+                .hasMessage("the path /foo/datasetAndFolder is both a dataset and a folder. " +
+                            "You must delete the folder to be able to delete the dataset.")
+                .extracting(throwable -> ((HttpException) throwable).status())
+                .isEqualTo(Http.Status.CONFLICT_409);
     }
 
     @Test
-    void testDeleteVersionNoAccess() throws IOException, ExecutionException, InterruptedException {
+    void testDeleteVersionNoAccess() throws IOException {
         mockPathRequest("/foo/bar");
         mockVersion("/foo/bar", 50, 25, 10);
         mockAuthorizedDeleteToken("/foo/bar", Map.of(
@@ -205,11 +209,13 @@ class DataMaintenanceServiceTest {
         mockFile("bucket25", "/foo/bar/25/file1", "/foo/bar/25/baz/file2");
         mockFile("bucket10", "/foo/bar/10/file1", "/foo/bar/10/baz/file2");
 
-        assertThatThrownBy(() -> Single.create(service.delete("/foo/bar", false)).await())
+        assertThatThrownBy(() -> Single.create(service.delete("/foo/bar", false, "token")).await())
                 .hasMessageContaining("missing delete access for versions")
                 .hasMessageContaining("/foo/bar, 1970-01-01T00:00:00.025Z")
                 .hasMessageContaining("/foo/bar, 1970-01-01T00:00:00.010Z")
-                .isInstanceOf(HttpException.class);
+                .isInstanceOf(HttpException.class)
+                .extracting(throwable -> ((HttpException) throwable).status())
+                .isEqualTo(Http.Status.FORBIDDEN_403);
 
         assertThat(Files.walk(storageService.getFileSystem("bucket50").getPath("/")))
                 .extracting(path -> path.toUri().toString())
@@ -230,6 +236,5 @@ class DataMaintenanceServiceTest {
                         "gs://bucket10/foo/bar/10/file1",
                         "gs://bucket10/foo/bar/10/baz/file2"
                 );
-
     }
 }

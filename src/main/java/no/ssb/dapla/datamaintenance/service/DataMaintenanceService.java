@@ -27,6 +27,7 @@ import javax.json.JsonBuilderFactory;
 import javax.json.JsonObject;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
+import javax.ws.rs.HeaderParam;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
@@ -148,7 +149,8 @@ public class DataMaintenanceService {
     )
     public CompletionStage<DeleteResponse> delete(
             @PathParam("path") String datasetPath,
-            @QueryParam("dry-run") Boolean dryRun
+            @QueryParam("dry-run") Boolean dryRun,
+            @HeaderParam("Authorization")String auth
     ) {
 
         // TODO: Query/Auth parameters
@@ -165,7 +167,9 @@ public class DataMaintenanceService {
 
         if (!catalogService.isOnlyDataset(datasetPath, now).await()) {
             tokens.cancel();
-            throw new HttpException("the path " + datasetPath + " is also a folder");
+            throw new HttpException("the path " + datasetPath + " is both a dataset and a folder. You must delete the folder to be able to delete the dataset.",
+                    Http.Status.CONFLICT_409
+            );
         }
 
         // Check that access is allowed for each version.
@@ -176,7 +180,7 @@ public class DataMaintenanceService {
                 .collectList().await();
         if (!missingAccess.isEmpty()) {
             throw new HttpException("missing delete access for versions: \n" + Strings.join(missingAccess, "\n"),
-                    Http.Status.METHOD_NOT_ALLOWED_405
+                    Http.Status.FORBIDDEN_403
             );
         }
 

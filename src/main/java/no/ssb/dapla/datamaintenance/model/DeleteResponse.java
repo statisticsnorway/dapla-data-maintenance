@@ -7,7 +7,7 @@ import java.time.Instant;
 import java.util.List;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
-public record DeleteResponse(String datasetPath, List<DatasetVersion> deletedVersions) {
+public record DeleteResponse(String datasetPath, List<DatasetVersion> deletedVersions, Boolean dryRun) {
 
     public Long getTotalSize() {
         return deletedVersions.stream()

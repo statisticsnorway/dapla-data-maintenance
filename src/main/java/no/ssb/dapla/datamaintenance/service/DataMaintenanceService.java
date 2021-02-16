@@ -199,7 +199,7 @@ public class DataMaintenanceService {
             return storageService.finishDelete(parentUri, token, dryRun).map(pathAndSize ->
                     new DeleteResponse.DeletedFile(pathAndSize.path().toUri().toString(), pathAndSize.size())
             ).collectList().map(deletedFiles -> new DeleteResponse.DatasetVersion(version, deletedFiles));
-        }).collectList().map(versions -> new DeleteResponse(datasetPath, versions));
+        }).collectList().map(versions -> new DeleteResponse(datasetPath, versions, dryRun));
     }
 
     @Path("/test")

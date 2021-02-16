@@ -31,6 +31,7 @@ public class StorageService {
     private static final String GCS_SCHEME = "gs";
     private static final String FILE_SCHEME = "file";
     private static final String DELETED_MARKER = ".DELETED";
+    private static final String DRYRUN_MARKER = ".DRYRUNDELETE";
 
     private Executor executor = null;
 
@@ -77,9 +78,14 @@ public class StorageService {
     /**
      * Mark the prefix to be deleted
      *
+     * @param dryRun dry run flag.
      * @param prefix the prefix to delete.
      */
-    public Single<Path> markDelete(URI prefix, InputStream token) {
+    public Single<Path> markDelete(URI prefix, InputStream token, Boolean dryRun) {
+        return mark(prefix, token, dryRun ? DRYRUN_MARKER : DELETED_MARKER);
+    }
+
+    private Single<Path> mark(URI prefix, InputStream token, String markerName) {
         return Single.defer(() -> {
             try {
                 var fileSystem = setupFileSystem(prefix, token);
@@ -87,25 +93,20 @@ public class StorageService {
                 var path = fileSystem.getPath(file.getPath());
                 try {
                     // TODO: Append info about who tried to delete.
-                    Files.createFile(path.resolve(DELETED_MARKER));
+                    Path markerPath = path.resolve(markerName);
+                    Files.createFile(markerPath);
+                    return Single.just(markerPath);
                 } catch (FileAlreadyExistsException faee) {
                     // TODO: Log
                     return Single.empty();
                 }
-                return Single.just(path);
             } catch (IOException ioe) {
                 return Single.error(ioe);
             }
         });
     }
 
-    /**
-     * Delete the files marked for deletion
-     *
-     * @param prefix the prefix
-     * @return the list of files that are deleted.
-     */
-    public Multi<PathAndSize> finishDelete(URI prefix, InputStream token) {
+    Multi<Path> findMarked(URI prefix, InputStream token, String markerName) {
         return Multi.defer(() -> {
             try {
                 var fileSystem = setupFileSystem(prefix, token);
@@ -118,12 +119,37 @@ public class StorageService {
                         Multi.just(path),
                         Multi.create(Files.list(path))
                 ).filter(subDirectory -> {
-                    return Files.isDirectory(subDirectory) && Files.exists(subDirectory.resolve(DELETED_MARKER));
-                }).flatMap(pathToDelete -> deleteAllUnder(pathToDelete));
+                    return Files.isDirectory(subDirectory) && Files.exists(subDirectory.resolve(markerName));
+                });
             } catch (IOException ioe) {
                 return Single.error(ioe);
             }
         });
+    }
+
+    /**
+     * Delete the files marked for deletion
+     *
+     * @param prefix the prefix
+     * @return the list of files that are deleted.
+     */
+    public Multi<PathAndSize> finishDelete(URI prefix, InputStream token, Boolean dryRun) {
+        Multi<Path> markedPaths = findMarked(prefix, token, dryRun ? DRYRUN_MARKER : DELETED_MARKER);
+        if (dryRun) {
+            return markedPaths.flatMap(path -> findAsync(path, Integer.MAX_VALUE, (foundPath, attr) -> !attr.isDirectory()))
+                    .flatMap(path -> sizeAsync(path).map(size -> new PathAndSize(path, size)))
+                    .flatMap(pathAndSize -> {
+                        // delete the dry run marker.
+                        if (pathAndSize.path().endsWith(DRYRUN_MARKER)) {
+                            return deleteIfExistsAsync(pathAndSize.path()).map(path -> pathAndSize);
+                        } else {
+                            return Single.just(pathAndSize);
+                        }
+                    });
+        } else {
+            return markedPaths.flatMap(pathToDelete -> deleteAllUnder(pathToDelete));
+        }
+
     }
 
     /**

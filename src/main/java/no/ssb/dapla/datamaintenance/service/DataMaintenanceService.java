@@ -145,7 +145,10 @@ public class DataMaintenanceService {
                     )
             }
     )
-    public CompletionStage<DeleteResponse> delete(@PathParam("path") String datasetPath, @QueryParam("dry-run") Boolean dryRun) {
+    public CompletionStage<DeleteResponse> delete(
+            @PathParam("path") String datasetPath,
+            @QueryParam("dry-run") Boolean dryRun
+    ) {
 
         // TODO: Query/Auth parameters
         String JWT = "";
@@ -168,7 +171,7 @@ public class DataMaintenanceService {
         tokens.flatMapIterable(Map::entrySet).flatMap(e -> {
             var parentUri = URI.create(e.getValue().getParentUri());
             var token = e.getValue().getAccessTokenBytes().newInput();
-            return storageService.markDelete(parentUri, token);
+            return storageService.markDelete(parentUri, token, dryRun);
         }).collectList().await();
 
         // Asynchronously call
@@ -176,7 +179,7 @@ public class DataMaintenanceService {
             var parentUri = URI.create(e.getValue().getParentUri());
             var token = e.getValue().getAccessTokenBytes().newInput();
             var version = Instant.ofEpochMilli(e.getKey().timestamp);
-            return storageService.finishDelete(parentUri, token).map(pathAndSize ->
+            return storageService.finishDelete(parentUri, token, dryRun).map(pathAndSize ->
                     new DeleteResponse.DeletedFile(pathAndSize.path().toUri().toString(), pathAndSize.size())
             ).collectList().map(deletedFiles -> new DeleteResponse.DatasetVersion(version, deletedFiles));
         }).collectList().map(versions -> new DeleteResponse(datasetPath, versions));

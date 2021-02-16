@@ -6,7 +6,6 @@ import no.ssb.dapla.data.access.protobuf.DeleteLocationResponse;
 import no.ssb.dapla.datamaintenance.access.DataAccessService;
 import no.ssb.dapla.datamaintenance.access.ProtobufJsonProvider;
 import no.ssb.dapla.datamaintenance.catalog.CatalogService;
-import no.ssb.dapla.datamaintenance.model.DeleteResponse;
 import no.ssb.dapla.datamaintenance.storage.TestableStorageService;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,6 +28,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
+import static no.ssb.dapla.datamaintenance.model.DeleteResponse.DatasetVersion;
+import static no.ssb.dapla.datamaintenance.model.DeleteResponse.DeletedFile;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockserver.model.HttpRequest.request;
@@ -39,20 +40,18 @@ class DataMaintenanceServiceTest {
 
     private static MockServerClient mockServer;
     private TestableStorageService storageService;
-    private CatalogService catalogService;
-    private DataAccessService accessService;
     private DataMaintenanceService service;
 
     @BeforeAll
-    static void beforeAll(MockServerClient serverClient) throws IOException {
+    static void beforeAll(MockServerClient serverClient) {
         mockServer = serverClient;
     }
 
     @BeforeEach
     void setUp() {
         var url = "http://localhost:" + mockServer.getPort();
-        catalogService = new CatalogService(url + "/catalog");
-        accessService = new DataAccessService(url + "/access");
+        CatalogService catalogService = new CatalogService(url + "/catalog");
+        DataAccessService accessService = new DataAccessService(url + "/access");
         // LocalStorageHelper is not thread safe unfortunately.
         storageService = new TestableStorageService(Executors.newSingleThreadExecutor());
         service = new DataMaintenanceService(catalogService, storageService, accessService);
@@ -80,20 +79,27 @@ class DataMaintenanceServiceTest {
                           "}\n", MediaType.APPLICATION_JSON));
     }
 
-    void mockDelete(String path, Map<Integer, String> versionURIMap) throws IOException {
+    void mockUnauthorizedDeleteToken(String path, Map<Integer, String> versionURIMap) throws IOException {
+        mockDeleteToken(path, versionURIMap, false);
+    }
+
+    void mockDeleteToken(String path, Map<Integer, String> versionURIMap, Boolean hasAccess) throws IOException {
         for (Integer version : versionURIMap.keySet()) {
             String URI = versionURIMap.get(version);
             String request = ProtobufJsonProvider.writeAsString(
                     DeleteLocationRequest.newBuilder().setPath(path).setSnapshot(version)
             );
 
-            String response = ProtobufJsonProvider.writeAsString(
-                    DeleteLocationResponse.newBuilder()
-                            .setAccessAllowed(true)
-                            .setParentUri(URI)
-                            .setExpirationTime(1234567890)
-                            .setAccessToken("some token")
-            );
+            var protoResp = DeleteLocationResponse.newBuilder()
+                    .setAccessAllowed(hasAccess)
+                    .setParentUri(URI);
+
+            if (hasAccess) {
+                protoResp.setExpirationTime(1234567890)
+                        .setAccessToken("some token");
+            }
+
+            String response = ProtobufJsonProvider.writeAsString(protoResp);
 
             mockServer.when(request()
                     .withPath("/access/rpc/DataAccessService/deleteLocation")
@@ -102,6 +108,10 @@ class DataMaintenanceServiceTest {
                     response, MediaType.APPLICATION_JSON
             ));
         }
+    }
+
+    void mockAuthorizedDeleteToken(String path, Map<Integer, String> versionURIMap) throws IOException {
+        mockDeleteToken(path, versionURIMap, true);
     }
 
     private void mockFile(String bucket, String... files) throws IOException {
@@ -118,7 +128,7 @@ class DataMaintenanceServiceTest {
 
         mockPathRequest("/foo/bar");
         mockVersion("/foo/bar", 50, 25, 10);
-        mockDelete("/foo/bar", Map.of(
+        mockAuthorizedDeleteToken("/foo/bar", Map.of(
                 50, "gs://bucket50/foo/bar/50",
                 25, "gs://bucket25/foo/bar/25",
                 10, "gs://bucket10/foo/bar/10"
@@ -132,31 +142,24 @@ class DataMaintenanceServiceTest {
                 .get();
 
         assertThat(delete.datasetPath()).isEqualTo("/foo/bar");
-        assertThat(delete.deletedVersions()).extracting(DeleteResponse.DatasetVersion::timestamp)
-                .containsExactlyInAnyOrder(
-                        Instant.ofEpochMilli(50),
-                        Instant.ofEpochMilli(25),
-                        Instant.ofEpochMilli(10)
-                );
+        assertThat(delete.getTotalSize()).isEqualTo(112L);
         assertThat(delete.deletedVersions()).containsExactly(
-                new DeleteResponse.DatasetVersion(Instant.ofEpochMilli(50), List.of(
-                        new DeleteResponse.DeletedFile("gs://bucket50/foo/bar/50/.DELETED", 0L),
-                        new DeleteResponse.DeletedFile("gs://bucket50/foo/bar/50/file2", 17L),
-                        new DeleteResponse.DeletedFile("gs://bucket50/foo/bar/50/file1", 17L)
+                new DatasetVersion(Instant.ofEpochMilli(50), List.of(
+                        new DeletedFile("gs://bucket50/foo/bar/50/.DELETED", 0L),
+                        new DeletedFile("gs://bucket50/foo/bar/50/file2", 17L),
+                        new DeletedFile("gs://bucket50/foo/bar/50/file1", 17L)
                 )),
-                new DeleteResponse.DatasetVersion(Instant.ofEpochMilli(25), List.of(
-                        new DeleteResponse.DeletedFile("gs://bucket25/foo/bar/25/.DELETED", 0L),
-                        new DeleteResponse.DeletedFile("gs://bucket25/foo/bar/25/files1", 18L),
-                        new DeleteResponse.DeletedFile("gs://bucket25/foo/bar/25/baz/file2", 21L)
+                new DatasetVersion(Instant.ofEpochMilli(25), List.of(
+                        new DeletedFile("gs://bucket25/foo/bar/25/.DELETED", 0L),
+                        new DeletedFile("gs://bucket25/foo/bar/25/files1", 18L),
+                        new DeletedFile("gs://bucket25/foo/bar/25/baz/file2", 21L)
                 )),
-                new DeleteResponse.DatasetVersion(Instant.ofEpochMilli(10), List.of(
-                        new DeleteResponse.DeletedFile("gs://bucket10/foo/bar/10/.DELETED", 0L),
-                        new DeleteResponse.DeletedFile("gs://bucket10/foo/bar/10/files1", 18L),
-                        new DeleteResponse.DeletedFile("gs://bucket10/foo/bar/10/baz/file2", 21L)
+                new DatasetVersion(Instant.ofEpochMilli(10), List.of(
+                        new DeletedFile("gs://bucket10/foo/bar/10/.DELETED", 0L),
+                        new DeletedFile("gs://bucket10/foo/bar/10/files1", 18L),
+                        new DeletedFile("gs://bucket10/foo/bar/10/baz/file2", 21L)
                 ))
         );
-
-        System.out.println(delete);
     }
 
     @Test
@@ -186,7 +189,24 @@ class DataMaintenanceServiceTest {
     }
 
     @Test
-    void testDeleteVersionNoAccess() {
+    void testDeleteVersionNoAccess() throws IOException, ExecutionException, InterruptedException {
+        mockPathRequest("/foo/bar");
+        mockVersion("/foo/bar", 50, 25, 10);
+        mockAuthorizedDeleteToken("/foo/bar", Map.of(
+                50, "gs://bucket50/foo/bar/50",
+                25, "gs://bucket25/foo/bar/25"
+        ));
+        mockUnauthorizedDeleteToken("/foo/bar", Map.of(
+                10, "gs://bucket10/foo/bar/10"
+        ));
+
+        mockFile("bucket50", "/foo/bar/50/file1", "/foo/bar/50/file2");
+        mockFile("bucket25", "/foo/bar/25/files1", "/foo/bar/25/baz/file2");
+        mockFile("bucket10", "/foo/bar/10/files1", "/foo/bar/10/baz/file2");
+
+        var delete = service.delete("/foo/bar", false)
+                .toCompletableFuture()
+                .get();
 
     }
 }

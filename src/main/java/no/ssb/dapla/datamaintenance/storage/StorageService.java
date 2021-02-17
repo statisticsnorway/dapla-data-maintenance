@@ -1,9 +1,6 @@
 package no.ssb.dapla.datamaintenance.storage;
 
 import com.google.auth.Credentials;
-import com.google.auth.oauth2.AccessToken;
-import com.google.auth.oauth2.OAuth2Credentials;
-import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.storage.StorageOptions;
 import com.google.cloud.storage.contrib.nio.CloudStorageConfiguration;
 import com.google.cloud.storage.contrib.nio.CloudStorageFileSystem;
@@ -12,7 +9,6 @@ import io.helidon.common.reactive.Single;
 
 import javax.enterprise.context.ApplicationScoped;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URI;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.FileSystem;
@@ -132,7 +128,7 @@ public class StorageService {
                         Multi.just(path),
                         Multi.create(Files.list(path))
                 ).filter(subDirectory -> {
-                    return Files.isDirectory(subDirectory) && Files.exists(subDirectory.resolve(markerName));
+                    return Files.exists(subDirectory.resolve(markerName));
                 });
             } catch (IOException ioe) {
                 return Single.error(ioe);

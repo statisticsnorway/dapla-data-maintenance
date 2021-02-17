@@ -143,9 +143,9 @@ class DataMaintenanceServiceTest {
                 .toCompletableFuture()
                 .get();
 
-        assertThat(delete.datasetPath()).isEqualTo("/foo/bar");
+        assertThat(delete.getDatasetPath()).isEqualTo("/foo/bar");
         assertThat(delete.getTotalSize()).isEqualTo(112L);
-        assertThat(delete.deletedVersions()).containsExactly(
+        assertThat(delete.getDeletedVersions()).containsExactly(
                 new DatasetVersion(Instant.ofEpochMilli(50), List.of(
                         new DeletedFile("gs://bucket50/foo/bar/50/.DELETED", 0L),
                         new DeletedFile("gs://bucket50/foo/bar/50/file2", 17L),

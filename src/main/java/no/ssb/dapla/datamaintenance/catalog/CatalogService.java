@@ -3,6 +3,7 @@ package no.ssb.dapla.datamaintenance.catalog;
 import io.helidon.common.reactive.Multi;
 import io.helidon.common.reactive.Single;
 import io.helidon.config.Config;
+import no.ssb.dapla.datamaintenance.ExceptionConverter;
 import no.ssb.dapla.datamaintenance.catalog.CatalogClient.Identifier;
 import org.eclipse.microprofile.rest.client.RestClientBuilder;
 
@@ -46,21 +47,25 @@ public class CatalogService {
 
     public Multi<Identifier> getPath(String prefix, Instant version, Integer limit) {
         return Single.create(client.pathAsync(prefix, version, limit))
-                .flatMapIterable(identifierList -> identifierList.entries);
+                .flatMapIterable(identifierList -> identifierList.entries)
+                .onError(throwable -> new ExceptionConverter("failed to get paths"));
     }
 
     public Multi<Identifier> getDatasets(String prefix, Instant version, Integer limit) {
         return Single.create(client.datasetAsync(prefix, version, limit))
-                .flatMapIterable(identifierList -> identifierList.entries);
+                .flatMapIterable(identifierList -> identifierList.entries)
+                .onError(throwable -> new ExceptionConverter("failed to get datasets"));
     }
 
     public Multi<Identifier> getFolders(String prefix, Instant version, Integer limit) {
         return Single.create(client.folderAsync(prefix, version, limit))
-                .flatMapIterable(identifierList -> identifierList.entries);
+                .flatMapIterable(identifierList -> identifierList.entries)
+                .onError(throwable -> new ExceptionConverter("failed to get folders"));
     }
 
     public Multi<Identifier> getDatasetVersions(String path, Integer limit) {
         return Single.create(client.versionAsync(path, limit))
-                .flatMapIterable(identifierList -> identifierList.entries);
+                .flatMapIterable(identifierList -> identifierList.entries)
+                .onError(throwable -> new ExceptionConverter("failed to get versions"));
     }
 }

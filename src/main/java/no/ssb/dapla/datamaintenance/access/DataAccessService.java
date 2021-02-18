@@ -4,6 +4,7 @@ import io.helidon.common.reactive.Single;
 import io.helidon.config.Config;
 import no.ssb.dapla.data.access.protobuf.DeleteLocationRequest;
 import no.ssb.dapla.data.access.protobuf.DeleteLocationResponse;
+import no.ssb.dapla.datamaintenance.ExceptionConverter;
 import org.eclipse.microprofile.rest.client.RestClientBuilder;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -34,6 +35,10 @@ public class DataAccessService {
         if (!token.startsWith("Bearer ")) {
             token = "Bearer " + token;
         }
-        return Single.create(client.deleteLocation(request, token));
+        String finalToken = token;
+        return Single.defer(() ->
+                Single.create(client.deleteLocation(request, finalToken))
+                        .onError(throwable -> new ExceptionConverter("failed to get token"))
+        );
     }
 }

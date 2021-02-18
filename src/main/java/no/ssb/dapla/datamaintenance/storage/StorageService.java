@@ -66,9 +66,9 @@ public class StorageService {
                     bucketName,
                     // CloudStorageConfiguration.DEFAULT
                     CloudStorageConfiguration.builder()
-                        .autoDetectRequesterPays(false)
-                        .userProject(null)
-                        .build(),
+                            .autoDetectRequesterPays(false)
+                            .userProject(null)
+                            .build(),
                     getStorageOptions(credentials)
             );
         } else if (FILE_SCHEME.equalsIgnoreCase(scheme)) {
@@ -121,15 +121,14 @@ public class StorageService {
                 var fileSystem = setupFileSystem(prefix, credentials);
                 var path = fileSystem.getPath(removeSchemeAndHost(prefix).getPath());
 
+                return findAsync(path, Integer.MAX_VALUE, (directory, attr) -> directory.endsWith(markerName))
+                        .map(Path::getParent);
                 // TODO: check if a recursive implementation with Files.find() and a folder
                 //  filter would improve performances. I suspect that GCS under the hood need
                 //  to go through the files sequentially anyways.
-                return Multi.concat(
-                        Multi.just(path),
-                        Multi.create(Files.list(path))
-                ).filter(subDirectory -> {
-                    return Files.exists(subDirectory.resolve(markerName));
-                });
+//                return Multi.create(Files.list(path)).filter(directory ->
+//                                directory.endsWith(markerName)
+//                        ).map(Path::getParent);
             } catch (IOException ioe) {
                 return Single.error(ioe);
             }

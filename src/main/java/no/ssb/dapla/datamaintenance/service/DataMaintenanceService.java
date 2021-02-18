@@ -47,6 +47,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 import static no.ssb.dapla.datamaintenance.catalog.CatalogClient.Identifier;
 
@@ -164,21 +165,24 @@ public class DataMaintenanceService {
         Instant now = Instant.now();
 
         // Make sure the dataset is not also a folder.
-        Single<Map<Identifier, DeleteLocationResponse>> tokens = catalogService.getDatasetVersions(datasetPath, Integer.MAX_VALUE)
+        Single<Map<Identifier, DeleteLocationResponse>> tokensSingle = catalogService.getDatasetVersions(datasetPath, Integer.MAX_VALUE)
                 .flatMap(identifier ->
                         dataAccessService.getDeleteToken(identifier.path, identifier.timestamp, JWT.tokenContent())
                                 .map(r -> new AbstractMap.SimpleEntry<>(identifier, r)))
                 .collect(HashMap::new, (m, e) -> m.put(e.getKey(), e.getValue()));
 
         if (!catalogService.isOnlyDataset(datasetPath, now).await()) {
-            tokens.cancel();
+            tokensSingle.cancel();
             throw new HttpException("the path " + datasetPath + " is both a dataset and a folder. You must delete the folder to be able to delete the dataset.",
                     Http.Status.CONFLICT_409
             );
         }
 
+        // Cache the result.
+        var tokens = tokensSingle.await(5, TimeUnit.SECONDS);
+
         // Check that access is allowed for each version.
-        var missingAccess = tokens.flatMapIterable(Map::entrySet)
+        var missingAccess = Multi.just(tokens.entrySet())
                 .filter(r -> !r.getValue().getAccessAllowed())
                 .map(Map.Entry::getKey)
                 .map(identifier -> identifier.path + ", " + Instant.ofEpochMilli(identifier.timestamp))
@@ -190,7 +194,7 @@ public class DataMaintenanceService {
         }
 
         // Mark the versions to be deleted first.
-        tokens.flatMapIterable(Map::entrySet).flatMap(e -> {
+        Multi.just(tokens.entrySet()).flatMap(e -> {
             // TODO: Map earlier
             var parentUri = URI.create(String.join("/",
                     e.getValue().getParentUri(),
@@ -198,10 +202,10 @@ public class DataMaintenanceService {
                     e.getKey().timestamp.toString()
             ));
             return storageService.markDelete(parentUri, getoAuth2Credentials(e.getValue()), dryRun);
-        }).collectList().await();
+        }).collectList().await(1, TimeUnit.MINUTES);
 
         // Asynchronously call
-        return tokens.flatMapIterable(Map::entrySet).flatMap(e -> {
+        return Multi.just(tokens.entrySet()).flatMap(e -> {
             // TODO: Map earlier
             var parentUri = URI.create(String.join("/",
                     e.getValue().getParentUri(),

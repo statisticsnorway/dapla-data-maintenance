@@ -6,6 +6,7 @@ import com.google.auth.oauth2.OAuth2Credentials;
 import io.helidon.common.http.Http;
 import io.helidon.common.reactive.Multi;
 import io.helidon.common.reactive.Single;
+import io.helidon.security.jwt.JwtException;
 import io.helidon.security.jwt.SignedJwt;
 import io.helidon.webserver.HttpException;
 import joptsimple.internal.Strings;
@@ -159,11 +160,7 @@ public class DataMaintenanceService {
             @HeaderParam("Authorization") String auth
     ) {
 
-
-        SignedJwt JWT = SignedJwt.parseToken((auth.startsWith("Bearer ") ?
-                auth.substring(7) :
-                auth
-        ).trim());
+        SignedJwt JWT = checkToken(auth);
         Instant now = Instant.now();
 
         // Make sure the dataset is not also a folder.
@@ -217,9 +214,23 @@ public class DataMaintenanceService {
             var version = Instant.ofEpochMilli(e.getKey().timestamp);
             var credentials = getoAuth2Credentials(e.getValue());
             return storageService.finishDelete(parentUri, credentials, dryRun).map(pathAndSize ->
-                    new DeleteResponse.DeletedFile(pathAndSize.path().toUri().toString(), pathAndSize.size())
+                    new DeleteResponse.DeletedFile(pathAndSize.getPath().toUri().toString(), pathAndSize.getSize())
             ).collectList().map(deletedFiles -> new DeleteResponse.DatasetVersion(version, deletedFiles));
         }).collectList().map(versions -> new DeleteResponse(datasetPath, versions, dryRun));
+    }
+
+    private SignedJwt checkToken(String auth) throws HttpException {
+        if (auth == null) {
+            throw new HttpException("missing token", Http.Status.UNAUTHORIZED_401);
+        }
+        try {
+            return SignedJwt.parseToken((auth.startsWith("Bearer ") ?
+                    auth.substring(7) :
+                    auth
+            ).trim());
+        } catch (JwtException je) {
+            throw new HttpException("invalid token", Http.Status.UNAUTHORIZED_401, je);
+        }
     }
 
     private OAuth2Credentials getoAuth2Credentials(DeleteLocationResponse resp) {

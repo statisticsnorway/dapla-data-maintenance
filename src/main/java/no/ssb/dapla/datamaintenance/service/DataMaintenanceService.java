@@ -29,6 +29,7 @@ import javax.json.Json;
 import javax.json.JsonBuilderFactory;
 import javax.json.JsonObject;
 import javax.ws.rs.DELETE;
+import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.HeaderParam;
 import javax.ws.rs.Path;
@@ -154,9 +155,10 @@ public class DataMaintenanceService {
     )
     public CompletionStage<DeleteResponse> delete(
             @PathParam("path") String datasetPath,
-            @QueryParam("dry-run") Boolean dryRun,
+            @DefaultValue("true") @QueryParam("dry-run") Boolean dryRun,
             @HeaderParam("Authorization") String auth
     ) {
+
 
         SignedJwt JWT = SignedJwt.parseToken((auth.startsWith("Bearer ") ?
                 auth.substring(7) :

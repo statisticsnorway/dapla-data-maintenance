@@ -64,7 +64,6 @@ public class StorageService {
             var bucketName = prefix.getHost();
             return CloudStorageFileSystem.forBucket(
                     bucketName,
-                    // CloudStorageConfiguration.DEFAULT
                     CloudStorageConfiguration.builder()
                             .autoDetectRequesterPays(false)
                             .userProject(null)
@@ -148,8 +147,8 @@ public class StorageService {
                     .flatMap(path -> sizeAsync(path).map(size -> new PathAndSize(path, size)))
                     .flatMap(pathAndSize -> {
                         // delete the dry run marker.
-                        if (pathAndSize.path().endsWith(DRYRUN_MARKER)) {
-                            return deleteIfExistsAsync(pathAndSize.path()).map(path -> pathAndSize);
+                        if (pathAndSize.getPath().endsWith(DRYRUN_MARKER)) {
+                            return deleteIfExistsAsync(pathAndSize.getPath()).map(path -> pathAndSize);
                         } else {
                             return Single.just(pathAndSize);
                         }

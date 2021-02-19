@@ -234,9 +234,8 @@ public class DataMaintenanceService {
     }
 
     private OAuth2Credentials getoAuth2Credentials(DeleteLocationResponse resp) {
-        var credentials = OAuth2Credentials.create(new AccessToken(resp.getAccessToken(),
+        return OAuth2Credentials.create(new AccessToken(resp.getAccessToken(),
                 Date.from(Instant.ofEpochMilli(resp.getExpirationTime()))));
-        return credentials;
     }
 
     @Path("/test")

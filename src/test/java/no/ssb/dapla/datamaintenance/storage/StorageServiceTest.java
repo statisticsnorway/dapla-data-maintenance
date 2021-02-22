@@ -3,7 +3,6 @@ package no.ssb.dapla.datamaintenance.storage;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URI;
 import java.nio.file.Files;
 
@@ -54,9 +53,9 @@ class StorageServiceTest {
 
         var deletedFiles = service.finishDelete(URI.create("gs://fake-bucket-1/foo/bar"),
                 null, false)
-                .map(path -> path.path().toString()).collectList().await();
+                .map(path -> path.getPath().toString()).collectList().await();
 
-        assertThat(deletedFiles).containsExactly(
+        assertThat(deletedFiles).containsExactlyInAnyOrder(
                 "/foo/bar/file1",
                 "/foo/bar/file2",
                 "/foo/bar/.DELETED",

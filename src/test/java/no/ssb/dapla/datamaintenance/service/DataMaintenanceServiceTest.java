@@ -2,6 +2,9 @@ package no.ssb.dapla.datamaintenance.service;
 
 import io.helidon.common.http.Http;
 import io.helidon.common.reactive.Single;
+import io.helidon.security.jwt.Jwt;
+import io.helidon.security.jwt.SignedJwt;
+import io.helidon.security.jwt.jwk.Jwk;
 import io.helidon.webserver.HttpException;
 import no.ssb.dapla.data.access.protobuf.DeleteLocationRequest;
 import no.ssb.dapla.data.access.protobuf.DeleteLocationResponse;
@@ -43,6 +46,9 @@ class DataMaintenanceServiceTest {
     private static MockServerClient mockServer;
     private TestableStorageService storageService;
     private DataMaintenanceService service;
+    private SignedJwt token = SignedJwt.sign(
+            Jwt.builder().jwtId("token")
+            .build(), Jwk.NONE_JWK);
 
     @BeforeAll
     static void beforeAll(MockServerClient serverClient) {
@@ -139,7 +145,7 @@ class DataMaintenanceServiceTest {
         mockFile("bucket25", "/foo/bar/25/files1", "/foo/bar/25/baz/file2");
         mockFile("bucket10", "/foo/bar/10/files1", "/foo/bar/10/baz/file2");
 
-        var delete = service.delete("/foo/bar", false, "token")
+        var delete = service.delete("/foo/bar", false, token.tokenContent())
                 .toCompletableFuture()
                 .get();
 
@@ -185,7 +191,7 @@ class DataMaintenanceServiceTest {
                 }
                 """).withHeader(HttpHeaders.CONTENT_TYPE, APPLICATION_JSON));
 
-        assertThatThrownBy(() -> service.delete("/foo/datasetAndFolder", false, "token"))
+        assertThatThrownBy(() -> service.delete("/foo/datasetAndFolder", false, token.tokenContent()))
                 .isInstanceOf(HttpException.class)
                 .hasMessage("the path /foo/datasetAndFolder is both a dataset and a folder. " +
                             "You must delete the folder to be able to delete the dataset.")
@@ -209,7 +215,7 @@ class DataMaintenanceServiceTest {
         mockFile("bucket25", "/foo/bar/25/file1", "/foo/bar/25/baz/file2");
         mockFile("bucket10", "/foo/bar/10/file1", "/foo/bar/10/baz/file2");
 
-        assertThatThrownBy(() -> Single.create(service.delete("/foo/bar", false, "token")).await())
+        assertThatThrownBy(() -> Single.create(service.delete("/foo/bar", false, token.tokenContent())).await())
                 .hasMessageContaining("missing delete access for versions")
                 .hasMessageContaining("/foo/bar, 1970-01-01T00:00:00.025Z")
                 .hasMessageContaining("/foo/bar, 1970-01-01T00:00:00.010Z")

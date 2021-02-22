@@ -1,18 +1,20 @@
 package no.ssb.dapla.datamaintenance.model;
 
 import java.time.Instant;
-import java.util.List;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
 
 public final class DeleteResponse {
 
     private final String datasetPath;
-    private final List<DatasetVersion> deletedVersions;
+    private final Set<DatasetVersion> deletedVersions;
     private final Boolean dryRun;
 
-    public DeleteResponse(String datasetPath, List<DatasetVersion> deletedVersions, Boolean dryRun) {
+    public DeleteResponse(String datasetPath, Collection<DatasetVersion> deletedVersions, Boolean dryRun) {
         this.datasetPath = datasetPath;
-        this.deletedVersions = deletedVersions;
+        this.deletedVersions = new HashSet<>(deletedVersions);
         this.dryRun = dryRun;
     }
 
@@ -20,7 +22,7 @@ public final class DeleteResponse {
         return datasetPath;
     }
 
-    public List<DatasetVersion> getDeletedVersions() {
+    public Set<DatasetVersion> getDeletedVersions() {
         return deletedVersions;
     }
 
@@ -63,17 +65,17 @@ public final class DeleteResponse {
             return timestamp;
         }
 
-        public List<DeletedFile> getDeletedFiles() {
+        public Set<DeletedFile> getDeletedFiles() {
             return deletedFiles;
         }
 
         private final Instant timestamp;
-        private final List<DeletedFile> deletedFiles;
+        private final Set<DeletedFile> deletedFiles;
 
         public DatasetVersion(Instant timestamp,
-                              List<DeletedFile> deletedFiles) {
+                              Collection<DeletedFile> deletedFiles) {
             this.timestamp = timestamp;
-            this.deletedFiles = deletedFiles;
+            this.deletedFiles = new HashSet<>(deletedFiles);
         }
 
         @Override

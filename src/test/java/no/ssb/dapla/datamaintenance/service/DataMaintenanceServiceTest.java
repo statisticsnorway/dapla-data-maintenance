@@ -25,8 +25,8 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.Instant;
-import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
@@ -57,6 +57,7 @@ class DataMaintenanceServiceTest {
 
     @BeforeEach
     void setUp() {
+        mockServer.reset();
         var url = "http://localhost:" + mockServer.getPort();
         CatalogService catalogService = new CatalogService(url + "/catalog");
         DataAccessService accessService = new DataAccessService(url + "/access");
@@ -137,37 +138,37 @@ class DataMaintenanceServiceTest {
         mockPathRequest("/foo/bar");
         mockVersion("/foo/bar", 50, 25, 10);
         mockAuthorizedDeleteToken("/foo/bar", Map.of(
-                50, "gs://bucket50/foo/bar/50",
-                25, "gs://bucket25/foo/bar/25",
-                10, "gs://bucket10/foo/bar/10"
+                50, "gs://bucket50/prefix50",
+                25, "gs://bucket25/prefix25",
+                10, "gs://bucket10/prefix10"
         ));
-        mockFile("bucket50", "/foo/bar/50/file1", "/foo/bar/50/file2");
-        mockFile("bucket25", "/foo/bar/25/files1", "/foo/bar/25/baz/file2");
-        mockFile("bucket10", "/foo/bar/10/files1", "/foo/bar/10/baz/file2");
+        mockFile("bucket50", "/prefix50/foo/bar/50/file1", "/prefix50/foo/bar/50/file2");
+        mockFile("bucket25", "/prefix25/foo/bar/25/file1", "/prefix25/foo/bar/25/baz/file2");
+        mockFile("bucket10", "/prefix10/foo/bar/10/file1", "/prefix10/foo/bar/10/baz/file2");
 
         var delete = service.delete("/foo/bar", false, token.tokenContent())
                 .toCompletableFuture()
                 .get();
 
-        assertThat(delete.getDatasetPath()).isEqualTo("/foo/bar");
-        assertThat(delete.getTotalSize()).isEqualTo(112L);
-        assertThat(delete.getDeletedVersions()).containsExactly(
-                new DatasetVersion(Instant.ofEpochMilli(50), List.of(
-                        new DeletedFile("gs://bucket50/foo/bar/50/.DELETED", 0L),
-                        new DeletedFile("gs://bucket50/foo/bar/50/file2", 17L),
-                        new DeletedFile("gs://bucket50/foo/bar/50/file1", 17L)
+        assertThat(delete.getDeletedVersions()).containsExactlyInAnyOrder(
+                new DatasetVersion(Instant.ofEpochMilli(50), Set.of(
+                        new DeletedFile("gs://bucket50/prefix50/foo/bar/50/.DELETED", 0L),
+                        new DeletedFile("gs://bucket50/prefix50/foo/bar/50/file2", 26L),
+                        new DeletedFile("gs://bucket50/prefix50/foo/bar/50/file1", 26L)
                 )),
-                new DatasetVersion(Instant.ofEpochMilli(25), List.of(
-                        new DeletedFile("gs://bucket25/foo/bar/25/.DELETED", 0L),
-                        new DeletedFile("gs://bucket25/foo/bar/25/files1", 18L),
-                        new DeletedFile("gs://bucket25/foo/bar/25/baz/file2", 21L)
+                new DatasetVersion(Instant.ofEpochMilli(25), Set.of(
+                        new DeletedFile("gs://bucket25/prefix25/foo/bar/25/.DELETED", 0L),
+                        new DeletedFile("gs://bucket25/prefix25/foo/bar/25/file1", 26L),
+                        new DeletedFile("gs://bucket25/prefix25/foo/bar/25/baz/file2", 30L)
                 )),
-                new DatasetVersion(Instant.ofEpochMilli(10), List.of(
-                        new DeletedFile("gs://bucket10/foo/bar/10/.DELETED", 0L),
-                        new DeletedFile("gs://bucket10/foo/bar/10/files1", 18L),
-                        new DeletedFile("gs://bucket10/foo/bar/10/baz/file2", 21L)
+                new DatasetVersion(Instant.ofEpochMilli(10), Set.of(
+                        new DeletedFile("gs://bucket10/prefix10/foo/bar/10/.DELETED", 0L),
+                        new DeletedFile("gs://bucket10/prefix10/foo/bar/10/file1", 26L),
+                        new DeletedFile("gs://bucket10/prefix10/foo/bar/10/baz/file2", 30L)
                 ))
         );
+        assertThat(delete.getDatasetPath()).isEqualTo("/foo/bar");
+        assertThat(delete.getTotalSize()).isEqualTo(164L);
     }
 
     @Test

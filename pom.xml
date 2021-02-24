@@ -52,6 +52,22 @@
             <version>${slf4j.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>com.google.cloud</groupId>
+            <artifactId>google-cloud-nio</artifactId>
+            <version>0.122.6</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.auth</groupId>
+            <artifactId>google-auth-library-credentials</artifactId>
+            <version>0.22.2</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.api-client</groupId>
+            <artifactId>google-api-client</artifactId>
+            <version>1.31.2</version>
+        </dependency>
+
         <!-- OpenAPI -->
         <dependency>
             <groupId>org.eclipse.microprofile.openapi</groupId>
@@ -88,6 +104,23 @@
             <artifactId>mockwebserver</artifactId>
             <version>4.2.0</version>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mock-server</groupId>
+            <artifactId>mockserver-junit-jupiter</artifactId>
+            <version>5.11.1</version>
+        </dependency>
+        <dependency>
+            <groupId>no.ssb.dapla.data</groupId>
+            <artifactId>data-access-protobuf</artifactId>
+            <version>0.12</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>no.ssb.dapla.catalog</groupId>
+            <artifactId>dapla-catalog-protobuf</artifactId>
+            <version>0.10</version>
+            <scope>compile</scope>
         </dependency>
     </dependencies>
 
@@ -156,6 +189,9 @@
                 </executions>
             </plugin>
             <plugin>
+                <artifactId>maven-failsafe-plugin</artifactId>
+            </plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <!-- annotationProcessorPaths requires maven-compiler-plugin version 3.5 or higher -->
@@ -171,9 +207,6 @@
                 <configuration>
                     <argLine>--enable-preview</argLine>
                 </configuration>
-            </plugin>
-            <plugin>
-                <artifactId>maven-failsafe-plugin</artifactId>
             </plugin>
         </plugins>
     </build>
@@ -217,6 +250,22 @@
         </profile>
         <profile>
             <id>ssb-bip</id>
+            <repositories>
+                <repository>
+                    <id>ssb-bip-releases</id>
+                    <url>https://nexus.prod-bip-ci.ssb.no/repository/maven-releases/</url>
+                    <snapshots>
+                        <enabled>false</enabled>
+                    </snapshots>
+                </repository>
+                <repository>
+                    <id>ssb-bip-snapshots</id>
+                    <url>https://nexus.prod-bip-ci.ssb.no/repository/maven-snapshots/</url>
+                    <snapshots>
+                        <enabled>true</enabled>
+                    </snapshots>
+                </repository>
+            </repositories>
             <distributionManagement>
                 <repository>
                     <id>ssb-bip-releases</id>

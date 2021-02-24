@@ -178,7 +178,7 @@ public class DataMaintenanceService {
         }
 
         // Cache the result.
-        var tokens = tokensSingle.await(5, TimeUnit.SECONDS);
+        var tokens = tokensSingle.await(30, TimeUnit.SECONDS);
 
         // Check that access is allowed for each version.
         var missingAccess = Multi.just(tokens.entrySet())
@@ -192,7 +192,7 @@ public class DataMaintenanceService {
             );
         }
 
-        // Mark the versions to be deleted first.
+        // Mark and delete the versions.
         Multi.just(tokens.entrySet()).flatMap(e -> {
             // TODO: Map earlier
             var parentUri = URI.create(String.join("/",
@@ -200,7 +200,15 @@ public class DataMaintenanceService {
                     e.getKey().path,
                     e.getKey().timestamp.toString()
             ));
-            return storageService.markDelete(parentUri, getoAuth2Credentials(e.getValue()), dryRun);
+            return storageService.markDelete(parentUri, getoAuth2Credentials(e.getValue()), dryRun)
+                    .flatMapSingle(path -> {
+                        if (!dryRun) {
+                            return catalogService.deleteDatasetVersion(e.getKey().path,
+                                    Instant.ofEpochMilli(e.getKey().timestamp), JWT.tokenContent());
+                        } else {
+                            return Single.just(path);
+                        }
+                    });
         }).collectList().await(1, TimeUnit.MINUTES);
 
         // Asynchronously call

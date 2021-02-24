@@ -6,6 +6,7 @@ import io.helidon.security.jwt.Jwt;
 import io.helidon.security.jwt.SignedJwt;
 import io.helidon.security.jwt.jwk.Jwk;
 import io.helidon.webserver.HttpException;
+import no.ssb.dapla.catalog.protobuf.DeleteDatasetRequest;
 import no.ssb.dapla.data.access.protobuf.DeleteLocationRequest;
 import no.ssb.dapla.data.access.protobuf.DeleteLocationResponse;
 import no.ssb.dapla.datamaintenance.access.DataAccessService;
@@ -48,7 +49,7 @@ class DataMaintenanceServiceTest {
     private DataMaintenanceService service;
     private SignedJwt token = SignedJwt.sign(
             Jwt.builder().jwtId("token")
-            .build(), Jwk.NONE_JWK);
+                    .build(), Jwk.NONE_JWK);
 
     @BeforeAll
     static void beforeAll(MockServerClient serverClient) {
@@ -86,6 +87,24 @@ class DataMaintenanceServiceTest {
         ).respond(response()
                 .withBody("{\"entries\": [" + entries + "]" +
                           "}\n", MediaType.APPLICATION_JSON));
+    }
+
+    void mockDeleteVersion(String path, Integer... versions) throws IOException {
+        var entries = Stream.of(versions)
+                .map(version -> DeleteDatasetRequest.newBuilder()
+                        .setPath(path)
+                        .setTimestamp(version)
+                        .build()
+                ).collect(Collectors.toList());
+        for (DeleteDatasetRequest entry : entries) {
+            mockServer.when(request()
+                    .withMethod("POST")
+                    .withBody(ProtobufJsonProvider.writeAsString(entry))
+                    .withPath("/catalog/rpc/CatalogService/delete")
+            ).respond(response()
+                    .withBody("{}", MediaType.APPLICATION_JSON));
+        }
+
     }
 
     void mockUnauthorizedDeleteToken(String path, Map<Integer, String> versionURIMap) throws IOException {
@@ -137,6 +156,7 @@ class DataMaintenanceServiceTest {
 
         mockPathRequest("/foo/bar");
         mockVersion("/foo/bar", 50, 25, 10);
+        mockDeleteVersion("/foo/bar", 50, 25, 10);
         mockAuthorizedDeleteToken("/foo/bar", Map.of(
                 50, "gs://bucket50/prefix50",
                 25, "gs://bucket25/prefix25",

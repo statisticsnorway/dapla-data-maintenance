@@ -1,8 +1,13 @@
 package no.ssb.dapla.datamaintenance.catalog;
 
+import no.ssb.dapla.catalog.protobuf.DeleteDatasetRequest;
+import no.ssb.dapla.catalog.protobuf.DeleteDatasetResponse;
+import no.ssb.dapla.datamaintenance.access.ProtobufJsonProvider;
 import org.eclipse.microprofile.rest.client.annotation.RegisterProvider;
 
 import javax.ws.rs.GET;
+import javax.ws.rs.HeaderParam;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
@@ -14,6 +19,7 @@ import java.util.concurrent.CompletionStage;
 
 @Path("/")
 @RegisterProvider(InstantConverterProvider.class)
+@RegisterProvider(ProtobufJsonProvider.class)
 public interface CatalogClient {
 
     @GET
@@ -45,7 +51,11 @@ public interface CatalogClient {
                                               @QueryParam("limit") Integer limit
     );
 
-
+    @POST
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path("rpc/CatalogService/delete")
+    CompletionStage<DeleteDatasetResponse> deleteAsync(DeleteDatasetRequest request,
+                                                       @HeaderParam("Authorization") String authorization);
 
     class IdentifierList {
         public List<Identifier> entries = List.of();

@@ -3,6 +3,8 @@ package no.ssb.dapla.datamaintenance.catalog;
 import io.helidon.common.reactive.Multi;
 import io.helidon.common.reactive.Single;
 import io.helidon.config.Config;
+import no.ssb.dapla.catalog.protobuf.DeleteDatasetRequest;
+import no.ssb.dapla.catalog.protobuf.DeleteDatasetResponse;
 import no.ssb.dapla.datamaintenance.ExceptionConverter;
 import no.ssb.dapla.datamaintenance.catalog.CatalogClient.Identifier;
 import org.eclipse.microprofile.rest.client.RestClientBuilder;
@@ -67,5 +69,17 @@ public class CatalogService {
         return Single.create(client.versionAsync(path, limit))
                 .flatMapIterable(identifierList -> identifierList.entries)
                 .onError(throwable -> new ExceptionConverter("failed to get versions"));
+    }
+
+    public Single<DeleteDatasetResponse> deleteDatasetVersion(String path, Instant version, String token) {
+        DeleteDatasetRequest request = DeleteDatasetRequest.newBuilder()
+                .setPath(path)
+                .setTimestamp(version.toEpochMilli())
+                .build();
+        if (!token.startsWith("Bearer ")) {
+            token = "Bearer " + token;
+        }
+        return Single.create(client.deleteAsync(request, token));
+
     }
 }
